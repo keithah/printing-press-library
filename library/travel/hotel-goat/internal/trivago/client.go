@@ -333,7 +333,7 @@ func (r *ReviewCount) UnmarshalJSON(b []byte) error {
 		*r = ReviewCount(n.String())
 		return nil
 	}
-	return nil
+	return fmt.Errorf("trivago: review_count must be a string or number, got %s", b)
 }
 
 // ParseReviewCount returns the integer from a localized review-count
