@@ -15,7 +15,8 @@ func newVehicleBatteryCmd(flags *rootFlags) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "battery <vin>",
-		Short: "Get the battery state of a vehicle",
+		Short: "Get the current battery state of a vehicle: charge level percent, estimated driving range, and charging status.",
+		Long:  "Get the current battery state of a vehicle: charge level percent, estimated driving range, and charging status.",
 		// TODO: replace placeholder example values before relying on this for live dogfood.
 		Example:     "  tessie-pp-cli vehicle battery example-value",
 		Annotations: map[string]string{"pp:endpoint": "vehicle.battery", "pp:method": "GET", "pp:path": "/{vin}/battery", "mcp:read-only": "true"},

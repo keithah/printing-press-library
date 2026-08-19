@@ -41,7 +41,7 @@ resources:
       state:
         method: GET
         path: "/{vin}/state"
-        description: "Get the latest state of a vehicle"
+        description: "Get the latest full state object of a vehicle: model, lock status, odometer, sentry mode, charge, and climate details."
         mutation: false
         params:
           - name: vin
@@ -59,7 +59,7 @@ resources:
       battery:
         method: GET
         path: "/{vin}/battery"
-        description: "Get the battery state of a vehicle"
+        description: "Get the current battery state of a vehicle: charge level percent, estimated driving range, and charging status."
         mutation: false
         params:
           - name: vin
@@ -72,7 +72,7 @@ resources:
       location:
         method: GET
         path: "/{vin}/location"
-        description: "Get the location of a vehicle"
+        description: "Get the vehicle geolocation: latitude, longitude, street address, and saved location associated with the car."
         mutation: false
         params:
           - name: vin
@@ -85,7 +85,7 @@ resources:
       wake:
         method: POST
         path: "/{vin}/wake"
-        description: "Wake the vehicle from sleep"
+        description: "Wake a sleeping vehicle so subsequent commands can reach it. Returns once the car is awake or after a timeout."
         mutation: true
         params:
           - name: vin

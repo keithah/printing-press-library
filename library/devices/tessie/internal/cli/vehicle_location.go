@@ -15,7 +15,8 @@ func newVehicleLocationCmd(flags *rootFlags) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "location <vin>",
-		Short: "Get the location of a vehicle",
+		Short: "Get the vehicle geolocation: latitude, longitude, street address, and saved location associated with the car.",
+		Long:  "Get the vehicle geolocation: latitude, longitude, street address, and saved location associated with the car.",
 		// TODO: replace placeholder example values before relying on this for live dogfood.
 		Example:     "  tessie-pp-cli vehicle location example-value",
 		Annotations: map[string]string{"pp:endpoint": "vehicle.location", "pp:method": "GET", "pp:path": "/{vin}/location", "mcp:read-only": "true"},

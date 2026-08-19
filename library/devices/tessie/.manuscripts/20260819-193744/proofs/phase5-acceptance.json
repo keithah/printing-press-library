@@ -12,7 +12,7 @@
     "type": "bearer_token",
     "api_key_available": true
   },
-  "source_fingerprint": "0a6df9a408028002f5e40f9bf5b65578f99184717a454608152207d03b660960",
+  "source_fingerprint": "6e094b56a87d38d7c6c34ef0c023bd141367fd63922724a216a74fdb81472490",
   "source_files": {
     "cmd/tessie-pp-cli/main.go": "10423dc772af9d878ce60df11168df9416dad0e622ae3559fa43f30ca894f6a1",
     "cmd/tessie-pp-mcp/main.go": "b84d9d8680946dc18ad60c04adcbf501e711a66ab64b9856c8b6caf74ed86e4b",
@@ -60,10 +60,10 @@
     "internal/cli/teach_playbook_test.go": "ff51d86dc601a698ae287de96a1fb140feb6bf378bd23b5057699ec0ee6e1816",
     "internal/cli/teach_test.go": "a746f06739464da02df9441c66fcad599a4adb2e2328414146aa22e04b13456e",
     "internal/cli/vehicle.go": "b59ed953ec3706b66a4dc5da866c524de42a66521968c3caa0380116f5698eb2",
-    "internal/cli/vehicle_battery.go": "253e15e7d34ab358a8684ce432dc2fd694cf7859305e3d0eb6b508485cc6a1c2",
-    "internal/cli/vehicle_location.go": "5e7e2d3945b009202e0738f8416a7121db582bc6d005ef2bdad5964c4e533af2",
-    "internal/cli/vehicle_state.go": "4ddeb638571556c088a8235b49cfc1e5b4f582368a5df4891d8e6699d4a95d5c",
-    "internal/cli/vehicle_wake.go": "4f305b30aa7296884fa5135c5b19e88293836643b8bd9f3695d56f64cda1fd72",
+    "internal/cli/vehicle_battery.go": "beca34e3fd611818036b25c21add378b7a1a1dee8f4af4a23af9c158b1548913",
+    "internal/cli/vehicle_location.go": "6919635ff92a450af2c501fdf1cbb6228da3a429c0780fdb3d7b8709bb778f2a",
+    "internal/cli/vehicle_state.go": "682d0cfbec7a039a90bfdf41fce10892a2e52936c0a3d2c884daf842f1d09171",
+    "internal/cli/vehicle_wake.go": "8f2766a23030545a95156ae666203ee47864e3b2e3e4a627b8644257d1cc1b45",
     "internal/cli/version.go": "3dc074bd47e4d26dabab4f4fee0f6ea78d83502d7cc675f705078ebd3b5236cf",
     "internal/cli/which.go": "eb30739e3015e7c71d0bd78c68be822e0347484928db6c590d73adeaabbacdb4",
     "internal/cli/which_test.go": "b77e3479eb64c5db45dedd98b2fcd7ac13980d45850d1be6310e31acd2f1153e",
@@ -176,6 +176,6 @@
     "internal/store/store.go": "afbe58fc99d66eda7345d7a32ad303fad30b1feaea3e284ba47faf8fb7da142f",
     "internal/store/upsert_batch_test.go": "a0c88dac4ec5cc20daebdf9f4325c8aa67c9bf2a25950ac8690a689071d641c5",
     "internal/types/types.go": "788fa896b662233f27f2864df05f16b5ac6869e5c7bf6863720034be66bb7483",
-    "spec.yaml": "38567c43b6b8d29f9ecf7f6b40b3fc829c8c9461223052c72705e0c11bfe1066"
+    "spec.yaml": "c024c47cfe5a558070d6500f6fbbc118895caa26dff67b542c204f8e88559ba2"
   }
 }

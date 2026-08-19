@@ -17,7 +17,8 @@ func newVehicleWakeCmd(flags *rootFlags) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "wake <vin>",
-		Short: "Wake the vehicle from sleep",
+		Short: "Wake a sleeping vehicle so subsequent commands can reach it. Returns once the car is awake or after a timeout.",
+		Long:  "Wake a sleeping vehicle so subsequent commands can reach it. Returns once the car is awake or after a timeout.",
 		// TODO: replace placeholder example values before relying on this for live dogfood.
 		Example:     "  tessie-pp-cli vehicle wake example-value",
 		Annotations: map[string]string{"pp:endpoint": "vehicle.wake", "pp:method": "POST", "pp:path": "/{vin}/wake"},

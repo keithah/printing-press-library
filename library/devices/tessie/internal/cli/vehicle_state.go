@@ -16,7 +16,8 @@ func newVehicleStateCmd(flags *rootFlags) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "state <vin>",
-		Short: "Get the latest state of a vehicle",
+		Short: "Get the latest full state object of a vehicle: model, lock status, odometer, sentry mode, charge, and climate details.",
+		Long:  "Get the latest full state object of a vehicle: model, lock status, odometer, sentry mode, charge, and climate details.",
 		// TODO: replace placeholder example values before relying on this for live dogfood.
 		Example:     "  tessie-pp-cli vehicle state example-value",
 		Annotations: map[string]string{"pp:endpoint": "vehicle.state", "pp:method": "GET", "pp:path": "/{vin}/state", "mcp:read-only": "true"},

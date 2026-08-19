@@ -24,6 +24,9 @@
       "command": "use",
       "path": "use",
       "summary": "tessie use <name-or-vin> persists an assumed vehicle (matched by display name, VIN, or VIN suffix) to a small mode-600 JSON store beside the config; vehicle state/battery/location/wake subcommands then fall back to that VIN when none is passed. tessie current prints the assumed car.",
+      "description": "Persist an assumed vehicle so later vehicle subcommands target it without repeating a VIN.",
+      "example": "tessie-pp-cli use VCK5YJ3E1EA000001 --json",
+      "happy_args": "name-or-vin=VCK5YJ3E1EA000001",
       "commands": ["use", "current"]
     }
   ],
@@ -32,6 +35,10 @@
       "use Car": "sets the persisted assumed vehicle to the car named Car",
       "current": "shows the persisted assumed vehicle",
       "vehicle state": "with no VIN positional, resolves to the assumed vehicle and returns live state"
-    }
+    },
+    "examples": [
+      "tessie-pp-cli use VCK5YJ3E1EA000001",
+      "tessie-pp-cli current"
+    ]
   }
 }
