@@ -45,7 +45,7 @@ permissions:
 jobs:
   warm:
     name: Warm proxy.golang.org
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v6
         with:

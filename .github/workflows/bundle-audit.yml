@@ -20,7 +20,7 @@ permissions:
 jobs:
   audit:
     name: Audit bundleability
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     concurrency:
       # Audits take ~25 min; cancel any in-flight audit when a newer one
       # is dispatched. The newer one's results supersede.

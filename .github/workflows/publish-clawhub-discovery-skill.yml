@@ -11,7 +11,7 @@ on:
 jobs:
   publish:
     name: Publish printing-press-library skill
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     permissions:
       contents: read
 
