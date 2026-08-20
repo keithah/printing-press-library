@@ -28,7 +28,7 @@ permissions:
 jobs:
   govulncheck:
     name: Govulncheck
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     steps:
       - uses: actions/checkout@v6
         with:

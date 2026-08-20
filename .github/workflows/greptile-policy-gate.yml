@@ -23,7 +23,7 @@ jobs:
   gate:
     name: Greptile policy gate
     if: github.event_name != 'pull_request_target' || github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     # 27min = 25min inner polling deadline + 2min buffer for checkout/setup.
     # Bumped from 17 → 27 because Greptile re-reviews queue behind rate
     # limits when a PR rapidly accumulates pushes; the prior 15-min inner

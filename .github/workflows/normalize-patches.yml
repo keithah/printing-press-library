@@ -48,7 +48,7 @@ permissions:
 jobs:
   normalize:
     name: Normalize and commit
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     # Queue patch-normalization runs, but do not share this group with sibling
     # generated-artifact workflows. GitHub keeps only one pending run per
     # concurrency group, so a shared group lets unrelated workflows evict a

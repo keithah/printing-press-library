@@ -52,7 +52,7 @@ permissions:
 jobs:
   detect:
     name: Detect affected CLIs
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     outputs:
       affected: ${{ steps.detect.outputs.affected }}
       count: ${{ steps.detect.outputs.count }}
@@ -133,7 +133,7 @@ jobs:
     name: Bundle ${{ matrix.target }} (${{ matrix.platform }})
     needs: detect
     if: needs.detect.outputs.count != '0'
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     strategy:
       fail-fast: false
       matrix:
@@ -213,7 +213,7 @@ jobs:
     name: Build CLI ${{ matrix.target }} (${{ matrix.platform }})
     needs: detect
     if: needs.detect.outputs.count != '0'
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     strategy:
       fail-fast: false
       matrix:
@@ -288,7 +288,7 @@ jobs:
     # only its own slug's artifacts, so apps don't share fate. Per-app
     # success is then enforced by the strict gate inside the release script.
     if: ${{ !cancelled() && needs.detect.outputs.count != '0' }}
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     strategy:
       fail-fast: false
       matrix:

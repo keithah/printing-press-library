@@ -44,7 +44,7 @@ concurrency:
 jobs:
   scan:
     name: Scan
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     timeout-minutes: 5
     steps:
       # Checkout the BASE branch from the base repo — never the PR head. The

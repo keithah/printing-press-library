@@ -31,7 +31,7 @@ permissions:
 jobs:
   update:
     name: Update and commit
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     # Keep release-ledger runs serialized because push.sh rebases but cannot
     # recover rebase conflicts or recompute CalVer versions. GitHub permits
     # only one pending run per group: a newer push can evict a pending sibling,
