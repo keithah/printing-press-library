@@ -323,6 +323,11 @@ type ReviewCount string
 
 // UnmarshalJSON accepts a JSON string or a JSON number.
 func (r *ReviewCount) UnmarshalJSON(b []byte) error {
+	// JSON null is a missing count, not an unsupported type.
+	if bytes.Equal(bytes.TrimSpace(b), []byte("null")) {
+		*r = ""
+		return nil
+	}
 	var s string
 	if err := json.Unmarshal(b, &s); err == nil {
 		*r = ReviewCount(s)

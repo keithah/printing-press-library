@@ -184,6 +184,31 @@ func TestReviewCount_UnmarshalStringAndNumber(t *testing.T) {
 	}
 }
 
+// TestReviewCount_UnmarshalNull treats JSON null as a missing count (empty
+// ReviewCount, ParseReviewCount 0). Erroring would fail the whole
+// accommodations list when any hotel omits reviews.
+func TestReviewCount_UnmarshalNull(t *testing.T) {
+	var r ReviewCount
+	if err := json.Unmarshal([]byte("null"), &r); err != nil {
+		t.Fatalf("null review_count unmarshal: %v", err)
+	}
+	if r != "" {
+		t.Fatalf("null got %q, want empty ReviewCount", r)
+	}
+	if got := ParseReviewCount(string(r)); got != 0 {
+		t.Fatalf("ParseReviewCount of null-decoded value = %d, want 0", got)
+	}
+}
+
+func TestReviewCount_UnmarshalUnsupportedType(t *testing.T) {
+	for _, raw := range []string{"true", "{}", "[]"} {
+		var r ReviewCount
+		if err := json.Unmarshal([]byte(raw), &r); err == nil {
+			t.Errorf("unmarshal %s: expected error, got nil (value %q)", raw, r)
+		}
+	}
+}
+
 // TestDecodeAccommodations_BookingURLFallback confirms that when the API
 // omits booking_url (as it does today — only accommodation_url is
 // returned), decode backfills BookingURL from URL so booking links keep
