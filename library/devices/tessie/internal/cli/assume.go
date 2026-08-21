@@ -17,6 +17,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/mvanhorn/printing-press-library/library/devices/tessie/internal/cliutil"
 )
 
 // assumeFileName sits next to the config file holding the assumed car.
@@ -30,11 +32,20 @@ type assumeStore struct {
 }
 
 // configDir returns the directory containing the resolved config file.
+// It follows the same --config / TESSIE_CONFIG / --home / TESSIE_HOME
+// resolution as config.Load so assumed.json stays next to the live config.
 func (f *rootFlags) configDir() string {
 	if strings.TrimSpace(f.configPath) != "" {
 		return filepath.Dir(f.configPath)
 	}
-	return filepath.Dir(defaultConfigPath())
+	if path := os.Getenv("TESSIE_CONFIG"); path != "" {
+		return filepath.Dir(path)
+	}
+	dir, err := cliutil.ConfigDir()
+	if err != nil {
+		return filepath.Dir(defaultConfigPath())
+	}
+	return dir
 }
 
 // defaultConfigPath mirrors the generator's default config location.
@@ -74,19 +85,11 @@ func (f *rootFlags) loadAssumed() (assumeStore, error) {
 
 // saveAssumed atomically writes the assume store with 600 perms.
 func (f *rootFlags) saveAssumed(s assumeStore) error {
-	path := f.assumePath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return cliutil.AtomicWritePrivateFile(f.assumePath(), data, 0o600, 0o700)
 }
 
 // vehicleRow is a normalized vehicle row used for selection output.

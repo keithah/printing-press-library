@@ -15,7 +15,8 @@
       "command": "${__dirname}/bin/tessie-pp-mcp",
       "args": [],
       "env": {
-        "PRINTING_PRESS_CLIENT_PROFILE": "${user_config.printing_press_client_profile}"
+        "PRINTING_PRESS_CLIENT_PROFILE": "${user_config.printing_press_client_profile}",
+        "TESSIE_API_TOKEN": "${user_config.tessie_api_token}"
       }
     }
   },
@@ -24,6 +25,13 @@
       "type": "string",
       "title": "Client profile",
       "description": "Binds the MCP server to an existing tenant-gated Printing Press client profile.",
+      "required": true
+    },
+    "tessie_api_token": {
+      "type": "string",
+      "title": "TESSIE_API_TOKEN",
+      "description": "Tessie API bearer token for live vehicle data and commands.",
+      "sensitive": true,
       "required": true
     }
   },
