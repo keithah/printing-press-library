@@ -5,6 +5,7 @@ package cli
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 )
@@ -168,5 +169,57 @@ func TestWifiSearch_RequiresArg(t *testing.T) {
 	_, _, err := runWifiCmd(t, "search")
 	if err == nil {
 		t.Fatal("expected error for missing search arg")
+	}
+}
+
+func TestWifiSearch_DryRunEncodesQuery(t *testing.T) {
+	flags := &rootFlags{dryRun: true}
+	cmd := newWifiCmd(flags)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{"search", "foo&bar"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "q=foo%26bar") {
+		t.Errorf("dry-run should query-escape reserved chars, got: %s", got)
+	}
+	if strings.Contains(got, "q=foo&bar") {
+		t.Errorf("dry-run leaked unescaped query: %s", got)
+	}
+}
+
+func TestWifiFlight_DryRunPathEscapes(t *testing.T) {
+	flags := &rootFlags{dryRun: true}
+	cmd := newWifiCmd(flags)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{"flight", "ua/1"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "/api/v1/flights/UA%2F1") {
+		t.Errorf("dry-run should path-escape flight, got: %s", got)
+	}
+}
+
+func TestWifiMachineFlagsSkipHumanTable(t *testing.T) {
+	// Greptile: --csv/--quiet/--select/--compact must not pick the TTY table.
+	cases := map[string]*rootFlags{
+		"csv":     {csv: true},
+		"quiet":   {quiet: true},
+		"compact": {compact: true},
+		"plain":   {plain: true},
+		"select":  {selectFields: "code"},
+		"json":    {asJSON: true},
+	}
+	for name, flags := range cases {
+		if wantsHumanTable(os.Stdout, flags) {
+			t.Errorf("%s: still chose human table on TTY", name)
+		}
 	}
 }

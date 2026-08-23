@@ -73,7 +73,7 @@ known, Starlink likelihood, and a human details string.`,
 			flight := strings.ToUpper(strings.TrimSpace(args[0]))
 			c := seatwifi.NewClient()
 			if flags.dryRun {
-				return printWifiDryRun(cmd, "seatwifi.GetFlight("+flight+")", c.BaseURL+"/api/v1/flights/"+flight)
+				return printWifiDryRun(cmd, "seatwifi.GetFlight("+flight+")", c.BaseURL+"/api/v1/flights/"+url.PathEscape(flight))
 			}
 			ctx, cancel := wifiCtx(cmd, flags)
 			defer cancel()
@@ -135,7 +135,7 @@ func newWifiAirlineCmd(flags *rootFlags) *cobra.Command {
 			code := strings.ToUpper(strings.TrimSpace(args[0]))
 			c := seatwifi.NewClient()
 			if flags.dryRun {
-				return printWifiDryRun(cmd, "seatwifi.GetAirline("+code+")", c.BaseURL+"/api/airlines/"+code)
+				return printWifiDryRun(cmd, "seatwifi.GetAirline("+code+")", c.BaseURL+"/api/airlines/"+url.PathEscape(code))
 			}
 			ctx, cancel := wifiCtx(cmd, flags)
 			defer cancel()
@@ -213,7 +213,7 @@ Without an airline code, returns totals + byAirline map. With a code
 			c := seatwifi.NewClient()
 			path := "/api/rollouts"
 			if code != "" {
-				path += "/" + code
+				path += "/" + url.PathEscape(code)
 			}
 			if flags.dryRun {
 				return printWifiDryRun(cmd, "seatwifi.GetRollouts("+code+")", c.BaseURL+path)
@@ -272,7 +272,7 @@ func newWifiSpeedCmd(flags *rootFlags) *cobra.Command {
 			flight := strings.ToUpper(strings.TrimSpace(args[0]))
 			c := seatwifi.NewClient()
 			if flags.dryRun {
-				return printWifiDryRun(cmd, "seatwifi.GetSpeedStats("+flight+")", c.BaseURL+"/api/speed-reports/stats/"+flight)
+				return printWifiDryRun(cmd, "seatwifi.GetSpeedStats("+flight+")", c.BaseURL+"/api/speed-reports/stats/"+url.PathEscape(flight))
 			}
 			ctx, cancel := wifiCtx(cmd, flags)
 			defer cancel()
@@ -296,7 +296,7 @@ func newWifiAirlineSpeedCmd(flags *rootFlags) *cobra.Command {
 			code := strings.ToUpper(strings.TrimSpace(args[0]))
 			c := seatwifi.NewClient()
 			if flags.dryRun {
-				return printWifiDryRun(cmd, "seatwifi.GetAirlineSpeedStats("+code+")", c.BaseURL+"/api/speed-reports/airline/"+code)
+				return printWifiDryRun(cmd, "seatwifi.GetAirlineSpeedStats("+code+")", c.BaseURL+"/api/speed-reports/airline/"+url.PathEscape(code))
 			}
 			ctx, cancel := wifiCtx(cmd, flags)
 			defer cancel()
@@ -365,7 +365,9 @@ func wifiCtx(cmd *cobra.Command, flags *rootFlags) (context.Context, context.Can
 }
 
 func wantJSON(cmd *cobra.Command, flags *rootFlags) bool {
-	return flags.asJSON || !isTerminal(cmd.OutOrStdout())
+	// --csv/--quiet/--select/--compact/--plain/--json must use the shared
+	// pipeline even on a TTY; otherwise scripts get the human table.
+	return !wantsHumanTable(cmd.OutOrStdout(), flags)
 }
 
 func printWifiDryRun(cmd *cobra.Command, fn, url string) error {
