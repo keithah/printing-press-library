@@ -10,8 +10,9 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"net/url"
+	"sort"
 	"strings"
 	"text/tabwriter"
 	"unicode/utf8"
@@ -81,7 +82,7 @@ known, Starlink likelihood, and a human details string.`,
 				return err
 			}
 			if wantJSON(cmd, flags) {
-				return printJSON(cmd, res)
+				return printJSONFiltered(cmd.OutOrStdout(), res, flags)
 			}
 			tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 			fmt.Fprintln(tw, "FIELD\tVALUE")
@@ -143,7 +144,7 @@ func newWifiAirlineCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			if wantJSON(cmd, flags) {
-				return printJSON(cmd, res)
+				return printJSONFiltered(cmd.OutOrStdout(), res, flags)
 			}
 			tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 			fmt.Fprintln(tw, "FIELD\tVALUE")
@@ -180,7 +181,7 @@ func newWifiAirlinesCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			if wantJSON(cmd, flags) {
-				return printJSON(cmd, list)
+				return printJSONFiltered(cmd.OutOrStdout(), list, flags)
 			}
 			fmt.Fprintf(cmd.ErrOrStderr(), "%d airlines (seatwifi)\n", len(list))
 			tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
@@ -225,14 +226,19 @@ Without an airline code, returns totals + byAirline map. With a code
 					return err
 				}
 				if wantJSON(cmd, flags) {
-					return printJSON(cmd, res)
+					return printJSONFiltered(cmd.OutOrStdout(), res, flags)
 				}
 				fmt.Fprintf(cmd.ErrOrStderr(), "%d airlines, %d rollouts\n", res.TotalAirlines, res.TotalRollouts)
 				tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-				fmt.Fprintln(tw, "AIRLINE\tAIRCRAFT\tSTATUS\tFLEET%\tCOMPLETION")
-				for ac, list := range res.ByAirline {
-					for _, r := range list {
-						fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", ac, r.AircraftType, r.Status, rolloutPct(r), rolloutDone(r))
+				fmt.Fprintln(tw, "AIRLINE	AIRCRAFT	STATUS	FLEET%	COMPLETION")
+				codes := make([]string, 0, len(res.ByAirline))
+				for ac := range res.ByAirline {
+					codes = append(codes, ac)
+				}
+				sort.Strings(codes)
+				for _, ac := range codes {
+					for _, r := range res.ByAirline[ac] {
+						fmt.Fprintf(tw, "%s	%s	%s	%s	%s\n", ac, r.AircraftType, r.Status, rolloutPct(r), rolloutDone(r))
 					}
 				}
 				return tw.Flush()
@@ -242,7 +248,7 @@ Without an airline code, returns totals + byAirline map. With a code
 				return err
 			}
 			if wantJSON(cmd, flags) {
-				return printJSON(cmd, res)
+				return printJSONFiltered(cmd.OutOrStdout(), res, flags)
 			}
 			fmt.Fprintf(cmd.ErrOrStderr(), "%s: %d rollouts\n", res.Airline, len(res.Rollouts))
 			tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
@@ -314,7 +320,7 @@ func newWifiSearchCmd(flags *rootFlags) *cobra.Command {
 			q := strings.TrimSpace(args[0])
 			c := seatwifi.NewClient()
 			if flags.dryRun {
-				return printWifiDryRun(cmd, fmt.Sprintf("seatwifi.Search(%q)", q), c.BaseURL+"/api/search?q="+q)
+				return printWifiDryRun(cmd, fmt.Sprintf("seatwifi.Search(%q)", q), c.BaseURL+"/api/search?"+url.Values{"q": []string{q}}.Encode())
 			}
 			ctx, cancel := wifiCtx(cmd, flags)
 			defer cancel()
@@ -323,7 +329,7 @@ func newWifiSearchCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			if wantJSON(cmd, flags) {
-				return printJSON(cmd, res)
+				return printJSONFiltered(cmd.OutOrStdout(), res, flags)
 			}
 			fmt.Fprintf(cmd.ErrOrStderr(), "%d results for %q\n", len(res), q)
 			if len(res) == 0 {
@@ -362,15 +368,6 @@ func wantJSON(cmd *cobra.Command, flags *rootFlags) bool {
 	return flags.asJSON || !isTerminal(cmd.OutOrStdout())
 }
 
-func printJSON(cmd *cobra.Command, v any) error {
-	bts, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return err
-	}
-	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(bts))
-	return err
-}
-
 func printWifiDryRun(cmd *cobra.Command, fn, url string) error {
 	_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\nurl: %s\n(dry run - no request sent)\n", fn, url)
 	return err
@@ -378,7 +375,7 @@ func printWifiDryRun(cmd *cobra.Command, fn, url string) error {
 
 func printSpeedStats(cmd *cobra.Command, flags *rootFlags, kind, id string, res *seatwifi.SpeedStats) error {
 	if wantJSON(cmd, flags) {
-		return printJSON(cmd, res)
+		return printJSONFiltered(cmd.OutOrStdout(), res, flags)
 	}
 	tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "FIELD\tVALUE")

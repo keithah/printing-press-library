@@ -26,7 +26,7 @@ func TestWifiCmd_HelpListsSubcommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("--help: %v", err)
 	}
-	for _, want := range []string{"flight", "airline", "airlines", "rollouts", "speed", "search"} {
+	for _, want := range []string{"flight", "airline", "airlines", "rollouts", "speed", "airline-speed", "search"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("help missing %q", want)
 		}
