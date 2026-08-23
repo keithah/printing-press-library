@@ -73,7 +73,7 @@ known, Starlink likelihood, and a human details string.`,
 			flight := strings.ToUpper(strings.TrimSpace(args[0]))
 			c := seatwifi.NewClient()
 			if flags.dryRun {
-				return printWifiDryRun(cmd, "seatwifi.GetFlight("+flight+")", c.BaseURL+"/api/v1/flights/"+url.PathEscape(flight))
+				return printWifiDryRun(cmd, flags, "seatwifi.GetFlight("+flight+")", c.BaseURL+"/api/v1/flights/"+url.PathEscape(flight))
 			}
 			ctx, cancel := wifiCtx(cmd, flags)
 			defer cancel()
@@ -135,7 +135,7 @@ func newWifiAirlineCmd(flags *rootFlags) *cobra.Command {
 			code := strings.ToUpper(strings.TrimSpace(args[0]))
 			c := seatwifi.NewClient()
 			if flags.dryRun {
-				return printWifiDryRun(cmd, "seatwifi.GetAirline("+code+")", c.BaseURL+"/api/airlines/"+url.PathEscape(code))
+				return printWifiDryRun(cmd, flags, "seatwifi.GetAirline("+code+")", c.BaseURL+"/api/airlines/"+url.PathEscape(code))
 			}
 			ctx, cancel := wifiCtx(cmd, flags)
 			defer cancel()
@@ -172,7 +172,7 @@ func newWifiAirlinesCmd(flags *rootFlags) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := seatwifi.NewClient()
 			if flags.dryRun {
-				return printWifiDryRun(cmd, "seatwifi.ListAirlines()", c.BaseURL+"/api/airlines")
+				return printWifiDryRun(cmd, flags, "seatwifi.ListAirlines()", c.BaseURL+"/api/airlines")
 			}
 			ctx, cancel := wifiCtx(cmd, flags)
 			defer cancel()
@@ -216,7 +216,7 @@ Without an airline code, returns totals + byAirline map. With a code
 				path += "/" + url.PathEscape(code)
 			}
 			if flags.dryRun {
-				return printWifiDryRun(cmd, "seatwifi.GetRollouts("+code+")", c.BaseURL+path)
+				return printWifiDryRun(cmd, flags, "seatwifi.GetRollouts("+code+")", c.BaseURL+path)
 			}
 			ctx, cancel := wifiCtx(cmd, flags)
 			defer cancel()
@@ -272,7 +272,7 @@ func newWifiSpeedCmd(flags *rootFlags) *cobra.Command {
 			flight := strings.ToUpper(strings.TrimSpace(args[0]))
 			c := seatwifi.NewClient()
 			if flags.dryRun {
-				return printWifiDryRun(cmd, "seatwifi.GetSpeedStats("+flight+")", c.BaseURL+"/api/speed-reports/stats/"+url.PathEscape(flight))
+				return printWifiDryRun(cmd, flags, "seatwifi.GetSpeedStats("+flight+")", c.BaseURL+"/api/speed-reports/stats/"+url.PathEscape(flight))
 			}
 			ctx, cancel := wifiCtx(cmd, flags)
 			defer cancel()
@@ -296,7 +296,7 @@ func newWifiAirlineSpeedCmd(flags *rootFlags) *cobra.Command {
 			code := strings.ToUpper(strings.TrimSpace(args[0]))
 			c := seatwifi.NewClient()
 			if flags.dryRun {
-				return printWifiDryRun(cmd, "seatwifi.GetAirlineSpeedStats("+code+")", c.BaseURL+"/api/speed-reports/airline/"+url.PathEscape(code))
+				return printWifiDryRun(cmd, flags, "seatwifi.GetAirlineSpeedStats("+code+")", c.BaseURL+"/api/speed-reports/airline/"+url.PathEscape(code))
 			}
 			ctx, cancel := wifiCtx(cmd, flags)
 			defer cancel()
@@ -320,7 +320,7 @@ func newWifiSearchCmd(flags *rootFlags) *cobra.Command {
 			q := strings.TrimSpace(args[0])
 			c := seatwifi.NewClient()
 			if flags.dryRun {
-				return printWifiDryRun(cmd, fmt.Sprintf("seatwifi.Search(%q)", q), c.BaseURL+"/api/search?"+url.Values{"q": []string{q}}.Encode())
+				return printWifiDryRun(cmd, flags, fmt.Sprintf("seatwifi.Search(%q)", q), c.BaseURL+"/api/search?"+url.Values{"q": []string{q}}.Encode())
 			}
 			ctx, cancel := wifiCtx(cmd, flags)
 			defer cancel()
@@ -370,8 +370,16 @@ func wantJSON(cmd *cobra.Command, flags *rootFlags) bool {
 	return !wantsHumanTable(cmd.OutOrStdout(), flags)
 }
 
-func printWifiDryRun(cmd *cobra.Command, fn, url string) error {
-	_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\nurl: %s\n(dry run - no request sent)\n", fn, url)
+func printWifiDryRun(cmd *cobra.Command, flags *rootFlags, fn, previewURL string) error {
+	payload := map[string]any{
+		"dry_run": true,
+		"fn":      fn,
+		"url":     previewURL,
+	}
+	if !wantsHumanTable(cmd.OutOrStdout(), flags) {
+		return printJSONFiltered(cmd.OutOrStdout(), payload, flags)
+	}
+	_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\nurl: %s\n(dry run - no request sent)\n", fn, previewURL)
 	return err
 }
 

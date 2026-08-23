@@ -48,7 +48,7 @@ func TestWifiFlight_DryRun(t *testing.T) {
 	if !strings.Contains(s, "/api/v1/flights/UA1234") {
 		t.Errorf("dry-run should contain flight path, got: %s", s)
 	}
-	if !strings.Contains(s, "dry run") {
+	if !strings.Contains(s, "dry_run") && !strings.Contains(s, "dry run") {
 		t.Errorf("dry-run marker missing: %s", s)
 	}
 }
@@ -155,6 +155,40 @@ func TestWifiAirlineSpeed_DryRun(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "/api/speed-reports/airline/UA") {
 		t.Errorf("got %q", out.String())
+	}
+}
+
+func TestWifiFlight_DryRunQuiet(t *testing.T) {
+	flags := &rootFlags{dryRun: true, quiet: true}
+	cmd := newWifiCmd(flags)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{"flight", "UA1234"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("quiet dry-run should emit nothing, got %q", out.String())
+	}
+}
+
+func TestWifiFlight_DryRunJSON(t *testing.T) {
+	flags := &rootFlags{dryRun: true, asJSON: true}
+	cmd := newWifiCmd(flags)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{"flight", "UA1234"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	got := out.String()
+	if strings.Contains(got, "dry run - no request sent") {
+		t.Fatalf("json dry-run leaked human text: %s", got)
+	}
+	if !strings.Contains(got, `"dry_run"`) || !strings.Contains(got, `/api/v1/flights/UA1234`) {
+		t.Fatalf("json dry-run missing payload, got: %s", got)
 	}
 }
 
