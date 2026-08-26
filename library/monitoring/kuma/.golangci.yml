@@ -1,3 +1,16 @@
-version: "2"
 linters:
-  default: standard
+  enable:
+    - errorlint
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - noctx
+    - rowserrcheck
+    - sqlclosecheck
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
