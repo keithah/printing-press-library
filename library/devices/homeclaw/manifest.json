@@ -8,10 +8,10 @@
   "license": "MIT",
   "server": {
     "type": "binary",
-    "entry_point": "bin/homeclaw-pp-cli",
+    "entry_point": "bin/homeclaw-pp-mcp",
     "mcp_config": {
-      "command": "${__dirname}/bin/homeclaw-pp-cli",
-      "args": ["mcp"]
+      "command": "${__dirname}/bin/homeclaw-pp-mcp",
+      "args": []
     }
   },
   "compatibility": {"platforms": ["darwin"]}
