@@ -1,3 +1,3 @@
 module github.com/mvanhorn/printing-press-library/library/monitoring/kuma
 
-go 1.24
+go 1.26.6

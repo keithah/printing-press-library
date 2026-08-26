@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -226,6 +227,54 @@ func TestFullPayloadAckAcceptedWithoutPush(t *testing.T) {
 	}
 	if !strings.Contains(string(raw), `"id":7`) {
 		t.Fatalf("expected full-payload ack, got: %s", raw)
+	}
+}
+
+func TestHeartbeatCollectionKeepsMultiplePushes(t *testing.T) {
+	f := newFakeKuma(t)
+	c := loginClient(t, context.Background(), f)
+	f.enqueue(
+		`42["heartbeatList",{"25":[{"monitorID":25,"status":1}]}]`,
+		`42["heartbeatList",{"43":[{"monitorID":43,"status":0}]}]`,
+	)
+	raw, err := c.CallWithPushFallback(context.Background(), "getHeartbeats", nil, "heartbeatList", time.Second)
+	if err != nil {
+		t.Fatalf("heartbeat collection: %v", err)
+	}
+	if !strings.Contains(string(raw), `"25"`) || !strings.Contains(string(raw), `"43"`) {
+		t.Fatalf("collection lost a streamed payload: %s", raw)
+	}
+}
+
+func TestHTTPClientTimeoutBoundsHandshake(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, HTTPClient: &http.Client{Timeout: 20 * time.Millisecond}})
+	started := time.Now()
+	err := c.connect(context.Background())
+	if err == nil {
+		t.Fatal("expected handshake timeout")
+	}
+	if time.Since(started) > time.Second {
+		t.Fatalf("timeout took too long: %v", time.Since(started))
+	}
+}
+func TestHeartbeatCollectionKeepsMultipleObjectPushes(t *testing.T) {
+	f := newFakeKuma(t)
+	c := loginClient(t, context.Background(), f)
+	f.enqueue(
+		`42["heartbeatList",{"25":[{"monitorID":25,"status":1}]}]`,
+		`42["heartbeatList",{"43":[{"monitorID":43,"status":0}]}]`,
+	)
+	raw, err := c.CallWithPushFallback(context.Background(), "getHeartbeats", nil, "heartbeatList", time.Second)
+	if err != nil {
+		t.Fatalf("heartbeat collection: %v", err)
+	}
+	var payloads []json.RawMessage
+	if err := json.Unmarshal(raw, &payloads); err != nil || len(payloads) != 2 {
+		t.Fatalf("expected two object payloads, got %s", raw)
 	}
 }
 

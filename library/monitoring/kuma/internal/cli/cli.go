@@ -32,16 +32,6 @@ Global flags:
   --json                          JSON output
 `
 
-// httpTimeout wraps the default transport with a per-request timeout.
-type httpTimeout struct{ d time.Duration }
-
-// RoundTrip defers to the default transport; the http.Client's Timeout field
-// (set alongside this transport) already bounds each request, and layering a
-// second context deadline here cancels long-poll requests mid-flight.
-func (h *httpTimeout) RoundTrip(req *http.Request) (*http.Response, error) {
-	return http.DefaultTransport.RoundTrip(req)
-}
-
 type exitError struct{ code int }
 
 func (e *exitError) Error() string { return fmt.Sprintf("exit %d", e.code) }
@@ -85,10 +75,11 @@ func Run(args []string, stdout, stderr io.Writer, env func(string) string) int {
 		BaseURL:    strings.TrimRight(*urlF, "/"),
 		Username:   *userF,
 		Password:   *passF,
-		HTTPClient: &http.Client{Transport: &httpTimeout{d: 20 * time.Second}},
+		HTTPClient: &http.Client{Timeout: 20 * time.Second},
 	})
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
 	var err error
 	switch cmd {
 	case "health":

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,7 +31,7 @@ type Monitor struct {
 func target(m *Monitor) string {
 	switch {
 	case m.URL != "":
-		return m.URL
+		return redactURLCredentials(m.URL)
 	case m.Hostname != "" && m.Port != nil && *m.Port != 0:
 		return fmt.Sprintf("%s:%d", m.Hostname, *m.Port)
 	case m.Hostname != "":
@@ -38,6 +39,15 @@ func target(m *Monitor) string {
 	default:
 		return ""
 	}
+}
+
+func redactURLCredentials(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.User == nil {
+		return raw
+	}
+	u.User = url.UserPassword("REDACTED", "REDACTED")
+	return u.String()
 }
 
 var statusLabels = map[int]string{0: "down", 1: "up", 2: "pending", 3: "maintenance"}
@@ -96,6 +106,7 @@ func fetchMonitors(ctx context.Context, client *kuma.Client) ([]*Monitor, []json
 	}
 	sortInt64s(matches.ids)
 	out := make([]*Monitor, 0, len(matches.ids))
+	validRaws := make([]json.RawMessage, 0, len(matches.ids))
 	for _, id := range matches.ids {
 		r := matches.raw[id]
 		var m Monitor
@@ -103,12 +114,9 @@ func fetchMonitors(ctx context.Context, client *kuma.Client) ([]*Monitor, []json
 			continue
 		}
 		out = append(out, &m)
+		validRaws = append(validRaws, r)
 	}
-	raws := make([]json.RawMessage, len(out))
-	for i, id := range matches.ids {
-		raws[i] = matches.raw[id]
-	}
-	return out, raws, nil
+	return out, validRaws, nil
 }
 
 func sortInt64s(xs []int64) {
@@ -124,53 +132,55 @@ func fetchHeartbeats(ctx context.Context, client *kuma.Client) (map[string][]bea
 	if err != nil {
 		return nil, err
 	}
-	var byMonitor map[string][]beatRaw
-	if err := json.Unmarshal(raw, &byMonitor); err != nil {
-		var tuple []json.RawMessage
-		if json.Unmarshal(raw, &tuple) != nil || len(tuple) < 3 {
-			return nil, fmt.Errorf("unexpected heartbeatList shape: %w", err)
-		}
-		var id string
-		if json.Unmarshal(tuple[1], &id) != nil {
-			var numeric int64
-			if json.Unmarshal(tuple[1], &numeric) != nil {
-				return nil, fmt.Errorf("unexpected heartbeat monitor id")
-			}
-			id = strconv.FormatInt(numeric, 10)
-		}
-		var beats []beatRaw
-		if json.Unmarshal(tuple[2], &beats) != nil {
-			return nil, fmt.Errorf("unexpected heartbeat list shape")
-		}
-		byMonitor = map[string][]beatRaw{id: beats}
-		for i := range byMonitor[id] {
-			if byMonitor[id][i].MonitorID == 0 {
-				byMonitor[id][i].MonitorID, _ = strconv.ParseInt(id, 10, 64)
-			}
-		}
+	var payloads []json.RawMessage
+	if json.Unmarshal(raw, &payloads) != nil || len(payloads) == 0 || (payloads[0][0] != '{' && payloads[0][0] != '[') {
+		payloads = []json.RawMessage{raw}
 	}
-	for _, extra := range client.DrainStashedEvents("heartbeatList") {
-		var tuple []json.RawMessage
-		if json.Unmarshal(extra, &tuple) == nil && len(tuple) >= 3 {
-			var id string
-			if json.Unmarshal(tuple[1], &id) != nil {
-				var numeric int64
-				if json.Unmarshal(tuple[1], &numeric) == nil {
-					id = strconv.FormatInt(numeric, 10)
-				}
-			}
-			var beats []beatRaw
-			if id != "" && json.Unmarshal(tuple[2], &beats) == nil {
-				for i := range beats {
-					if beats[i].MonitorID == 0 {
-						beats[i].MonitorID, _ = strconv.ParseInt(id, 10, 64)
-					}
-				}
-				byMonitor[id] = append(byMonitor[id], beats...)
-			}
+	byMonitor := map[string][]beatRaw{}
+	for _, payload := range payloads {
+		if err := mergeHeartbeatPayload(byMonitor, payload); err != nil {
+			return nil, err
 		}
 	}
 	return byMonitor, nil
+}
+
+func mergeHeartbeatPayload(dst map[string][]beatRaw, payload json.RawMessage) error {
+	var byMonitor map[string][]beatRaw
+	if json.Unmarshal(payload, &byMonitor) == nil {
+		for id, beats := range byMonitor {
+			for i := range beats {
+				if beats[i].MonitorID == 0 {
+					beats[i].MonitorID, _ = strconv.ParseInt(id, 10, 64)
+				}
+			}
+			dst[id] = append(dst[id], beats...)
+		}
+		return nil
+	}
+	var tuple []json.RawMessage
+	if json.Unmarshal(payload, &tuple) != nil || len(tuple) < 3 {
+		return fmt.Errorf("unexpected heartbeatList shape")
+	}
+	var id string
+	if json.Unmarshal(tuple[1], &id) != nil {
+		var numeric int64
+		if json.Unmarshal(tuple[1], &numeric) != nil {
+			return fmt.Errorf("unexpected heartbeat monitor id")
+		}
+		id = strconv.FormatInt(numeric, 10)
+	}
+	var beats []beatRaw
+	if id == "" || json.Unmarshal(tuple[2], &beats) != nil {
+		return fmt.Errorf("unexpected heartbeat list shape")
+	}
+	for i := range beats {
+		if beats[i].MonitorID == 0 {
+			beats[i].MonitorID, _ = strconv.ParseInt(id, 10, 64)
+		}
+	}
+	dst[id] = append(dst[id], beats...)
+	return nil
 }
 
 func runHealth(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, args []string, stdout, stderr io.Writer, urlF *string) error {
@@ -218,6 +228,7 @@ func runMonitors(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, arg
 
 func runHeartbeats(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, args []string, stdout, stderr io.Writer) error {
 	hours := fs.Int("hours", 3, "lookback window in hours")
+	monitorID := fs.Int64("monitor-id", 0, "filter to one monitor id")
 	if err := fs.Parse(args); err != nil {
 		return &exitError{ExitUsage}
 	}
@@ -240,6 +251,9 @@ func runHeartbeats(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, a
 	beats := make([]beatRow, 0, 32)
 	for _, list := range byMonitor {
 		for _, b := range list {
+			if *monitorID != 0 && b.MonitorID != *monitorID {
+				continue
+			}
 			t, terr := parseKumaTime(b.Time)
 			if terr != nil || t.Before(cutoff) {
 				continue // cannot be placed in the requested window -> excluded
@@ -300,9 +314,12 @@ func runIncident(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, arg
 		Msg    string `json:"msg,omitempty"`
 	}
 	timeline := make([]beatRow, 0, len(beats))
+	type timedBeat struct {
+		row beatRow
+		at  time.Time
+	}
+	timed := make([]timedBeat, 0, len(beats))
 	down, total := 0, 0
-	lastIsDown := false
-	var lastTime time.Time
 	for _, b := range beats {
 		t, terr := parseKumaTime(b.Time)
 		if terr != nil || t.Before(cutoff) {
@@ -317,12 +334,18 @@ func runIncident(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, arg
 		if len(b.Ping) > 0 {
 			json.Unmarshal(b.Ping, &ping)
 		}
-		timeline = append(timeline, beatRow{b.Status, lbl, b.Time, ping, b.Msg})
+		timed = append(timed, timedBeat{row: beatRow{b.Status, lbl, b.Time, ping, b.Msg}, at: t})
 		if b.Status == 0 {
 			down++
 		}
-		lastIsDown = b.Status == 0
-		lastTime = t
+	}
+	sort.SliceStable(timed, func(i, j int) bool { return timed[i].at.Before(timed[j].at) })
+	lastIsDown := false
+	for _, item := range timed {
+		timeline = append(timeline, item.row)
+	}
+	if len(timed) > 0 {
+		lastIsDown = timed[len(timed)-1].row.Status == 0
 	}
 	failureRate := 0.0
 	if total > 0 {
@@ -335,7 +358,6 @@ func runIncident(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, arg
 	case total > 0:
 		state = "up"
 	}
-	_ = lastTime
 	return emit(stdout, map[string]any{
 		"state": state,
 		"monitor": map[string]any{
@@ -372,13 +394,21 @@ func matchMonitor(monitors []*Monitor, arg string) *Monitor {
 }
 
 func runSetRetries(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, args []string, stdout, stderr io.Writer) error {
-	idF := fs.Int64("id", 0, "monitor id to edit (required)")
-	valueF := fs.Int("value", -1, "new maxretries value (required, >= 0)")
+	monitorF := fs.Int64("monitor", 0, "monitor id to edit (required)")
+	idAlias := fs.Int64("id", 0, "alias for --monitor")
+	valueF := fs.Int("maxretries", -1, "new maxretries value (required, >= 0)")
+	valueAlias := fs.Int("value", -1, "alias for --maxretries")
 	yesF := fs.Bool("yes", false, "apply the change (required; without it this is a dry run)")
 	if err := fs.Parse(args); err != nil {
 		return &exitError{ExitUsage}
 	}
-	if *idF == 0 || *valueF < 0 {
+	if *monitorF == 0 {
+		*monitorF = *idAlias
+	}
+	if *valueF < 0 {
+		*valueF = *valueAlias
+	}
+	if *monitorF == 0 || *valueF < 0 {
 		return usageError(stderr, "--id and --value (>=0) are required")
 	}
 	if err := client.EnsureConnected(ctx); err != nil {
@@ -390,13 +420,13 @@ func runSetRetries(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, a
 	}
 	idx := -1
 	for i, m := range monitors {
-		if m.ID == *idF {
+		if m.ID == *monitorF {
 			idx = i
 			break
 		}
 	}
 	if idx < 0 {
-		return fmt.Errorf("no monitor with id %d", *idF)
+		return fmt.Errorf("no monitor with id %d", *monitorF)
 	}
 	chosen, fullRaw := monitors[idx], raws[idx]
 	current := -1
@@ -451,7 +481,7 @@ func runSetRetries(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, a
 			return fetchErr
 		}
 		for _, m := range monitors2 {
-			if m.ID == *idF && m.MaxRetries != nil && *m.MaxRetries == *valueF {
+			if m.ID == *monitorF && m.MaxRetries != nil && *m.MaxRetries == *valueF {
 				applied = true
 			}
 		}

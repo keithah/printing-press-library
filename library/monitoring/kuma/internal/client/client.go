@@ -55,6 +55,7 @@ type Client struct {
 	authd  bool
 	jwt    string
 	authMu sync.Mutex
+	connMu sync.Mutex
 
 	stashMu sync.Mutex
 	stash   [][]byte // event records ("42...") seen while waiting for other packets
@@ -467,6 +468,8 @@ func (c *Client) login(ctx context.Context) error {
 
 // EnsureConnected connects and logs in if not already authenticated.
 func (c *Client) EnsureConnected(ctx context.Context) error {
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
 	c.authMu.Lock()
 	authd := c.authd
 	c.authMu.Unlock()
@@ -610,20 +613,7 @@ func (c *Client) CallWithPushFallback(ctx context.Context, event string, data an
 		if err := c.emitNoAck(ctx, event, data); err != nil {
 			return nil, fmt.Errorf("emit %s failed: %w", event, err)
 		}
-		deadline := time.NewTimer(90 * time.Second)
-		defer deadline.Stop()
-		for {
-			if raw := c.takeStashedEvent(pushEvent); raw != nil {
-				return raw, nil
-			}
-			select {
-			case <-deadline.C:
-				return nil, &ProtocolError{Msg: fmt.Sprintf("timed out waiting for %q", pushEvent)}
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(25 * time.Millisecond):
-			}
-		}
+		return c.collectStashedEvents(ctx, pushEvent, pushWait)
 	}
 	ack, err := c.emitAck(ctx, event, data)
 	if err != nil {
@@ -677,6 +667,44 @@ func (c *Client) CallWithPushFallback(ctx context.Context, event string, data an
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-time.After(25 * time.Millisecond):
+		}
+	}
+}
+
+func (c *Client) collectStashedEvents(ctx context.Context, name string, wait time.Duration) (json.RawMessage, error) {
+	deadline := time.Now().Add(wait)
+	var payloads []json.RawMessage
+	lastEvent := time.Time{}
+	for {
+		for {
+			raw := c.takeStashedEvent(name)
+			if raw == nil {
+				break
+			}
+			payloads = append(payloads, raw)
+			lastEvent = time.Now()
+		}
+		if len(payloads) > 0 && time.Since(lastEvent) >= 75*time.Millisecond {
+			if len(payloads) == 1 {
+				return payloads[0], nil
+			}
+			encoded, err := json.Marshal(payloads)
+			return encoded, err
+		}
+		if time.Now().After(deadline) {
+			if len(payloads) == 0 {
+				return nil, &ProtocolError{Msg: fmt.Sprintf("timed out waiting for %q", name)}
+			}
+			if len(payloads) == 1 {
+				return payloads[0], nil
+			}
+			encoded, err := json.Marshal(payloads)
+			return encoded, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(10 * time.Millisecond):
 		}
 	}
 }

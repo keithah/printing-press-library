@@ -323,4 +323,36 @@ func TestUnknownCommandUsage(t *testing.T) {
 	}
 }
 
+func TestSetRetriesDocumentedAliases(t *testing.T) {
+	f := newFakeKuma(t)
+	code, out, errout := runCLIApply(t, f, "set-retries", "--monitor", "43", "--maxretries", "2", "--yes")
+	if code != ExitOK {
+		t.Fatalf("exit=%d err=%s out=%s", code, errout, out)
+	}
+	if !strings.Contains(out, `"verified_by_readback": true`) {
+		t.Fatalf("alias invocation did not apply: %s", out)
+	}
+}
+
+func TestTargetRedactsURLCredentials(t *testing.T) {
+	m := &Monitor{URL: "https://alice:secret@example.test/health"}
+	got := target(m)
+	if strings.Contains(got, "alice") || strings.Contains(got, "secret") || !strings.Contains(got, "REDACTED") {
+		t.Fatalf("target leaked URL credentials: %q", got)
+	}
+}
+
+func TestMergeHeartbeatTuplePayloads(t *testing.T) {
+	dst := map[string][]beatRaw{}
+	if err := mergeHeartbeatPayload(dst, json.RawMessage(`["heartbeatList",25,[{"status":1}]]`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := mergeHeartbeatPayload(dst, json.RawMessage(`["heartbeatList","43",[{"status":0}]]`)); err != nil {
+		t.Fatal(err)
+	}
+	if len(dst["25"]) != 1 || len(dst["43"]) != 1 || dst["25"][0].MonitorID != 25 || dst["43"][0].MonitorID != 43 {
+		t.Fatalf("tuple payloads were not normalized: %#v", dst)
+	}
+}
+
 var _ = context.Background
