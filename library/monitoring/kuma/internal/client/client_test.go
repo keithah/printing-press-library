@@ -303,6 +303,22 @@ func TestHeartbeatCollectionKeepsMultipleObjectPushes(t *testing.T) {
 	}
 }
 
+// TestHeartbeatCollectionReturnsBeforeDeadline pins the burst-collection
+// timing contract: once the stream goes quiet the call must return promptly
+// rather than always paying the caller's full timeout.
+func TestHeartbeatCollectionReturnsBeforeDeadline(t *testing.T) {
+	f := newFakeKuma(t)
+	c := loginClient(t, context.Background(), f)
+	f.enqueue(`42["heartbeatList",{"25":[{"monitorID":25,"status":1}]}]`)
+	started := time.Now()
+	if _, err := c.CallWithPushFallback(context.Background(), "getHeartbeats", nil, "heartbeatList", 10*time.Second); err != nil {
+		t.Fatalf("heartbeat collection: %v", err)
+	}
+	if elapsed := time.Since(started); elapsed > 3*time.Second {
+		t.Fatalf("collection waited for the full deadline instead of the idle gap: %v", elapsed)
+	}
+}
+
 func itoa(n int) string {
 	if n == 0 {
 		return "0"

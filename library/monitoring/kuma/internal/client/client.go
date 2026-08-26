@@ -709,9 +709,17 @@ func (c *Client) CallWithPushFallback(ctx context.Context, event string, data an
 	}
 }
 
+// streamIdleGap is how long the collector waits for a further push after the
+// last one arrived. Kuma emits one heartbeatList record per monitor, so the
+// stream is a burst rather than a single frame: returning on the first record
+// truncates the result, while waiting for the full deadline makes every read
+// pay the worst case. Returning once the burst goes quiet does neither.
+const streamIdleGap = 500 * time.Millisecond
+
 func (c *Client) collectStashedEvents(ctx context.Context, name string, wait time.Duration) (json.RawMessage, error) {
 	deadline := time.Now().Add(wait)
 	var payloads []json.RawMessage
+	var lastEvent time.Time
 	for {
 		for {
 			raw := c.takeStashedEvent(name)
@@ -719,22 +727,31 @@ func (c *Client) collectStashedEvents(ctx context.Context, name string, wait tim
 				break
 			}
 			payloads = append(payloads, raw)
+			lastEvent = time.Now()
 		}
-		if time.Now().After(deadline) {
-			if len(payloads) == 0 {
-				return nil, &ProtocolError{Msg: fmt.Sprintf("timed out waiting for %q", name)}
-			}
-			if len(payloads) == 1 {
-				return payloads[0], nil
-			}
-			encoded, err := json.Marshal(payloads)
-			return encoded, err
+		settled := len(payloads) > 0 && time.Since(lastEvent) >= streamIdleGap
+		if settled || time.Now().After(deadline) {
+			return joinStreamPayloads(name, payloads)
 		}
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-time.After(10 * time.Millisecond):
 		}
+	}
+}
+
+// joinStreamPayloads renders a collected burst. A single record is returned
+// as-is so existing single-payload decoding is unchanged; multiple records are
+// wrapped in an array for the caller to merge.
+func joinStreamPayloads(name string, payloads []json.RawMessage) (json.RawMessage, error) {
+	switch len(payloads) {
+	case 0:
+		return nil, &ProtocolError{Msg: fmt.Sprintf("timed out waiting for %q", name)}
+	case 1:
+		return payloads[0], nil
+	default:
+		return json.Marshal(payloads)
 	}
 }
 

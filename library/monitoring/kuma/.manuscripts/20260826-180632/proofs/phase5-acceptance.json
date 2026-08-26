@@ -9,7 +9,7 @@
   "tests_passed": 4,
   "tests_failed": 0,
   "tests_skipped": 0,
-  "source_fingerprint": "7f0fd9256ff8c48bf82dcec30c7ccb508d72e91b5d95ffeba88028d4ac6a03c2",
+  "source_fingerprint": "554d68ca324b230222fcabe6368d885219a92494a036666aaeb91b3f4715a982",
   "source_files": {
     "go.mod": "c9075f47cdefe4cefa945658083fcef0f251cc067193786bc98dd5c69689d83f",
     "spec.yaml": "f8eba9bd390915d117ea289a8e0eeb9f20c1c8fa481682691fda2c36ffb75163",
@@ -19,8 +19,8 @@
     "internal/cli/cli.go": "5b0b59df2dba086ccb3f103e6c4bb70ef637bf4419e70a3b6a62c706342d70b8",
     "internal/cli/commands.go": "029e6419e6fa96a14dcf81b2da59bcc39b1a0cf1833f17ecea1139dddbd71ff1",
     "internal/cli/cli_test.go": "eb48ca6d53f0ea3a7ac558b51c8e3847bff8f3431a4802bbd97e847b28998b90",
-    "internal/client/client.go": "c4cc7ae2232f0fe5bf090dfd371d7c54ee58e32f137f29bced3edd800efa8f97",
-    "internal/client/client_test.go": "69c6e42c223a85bcdb9bae9a4a1a7f0cdbfb8aaf41abcff95cde8e72a0d75a69"
+    "internal/client/client.go": "3fdf6efee0534d5be4d299beabd12515b61851631b4f16dfc39545bf6b6a00a2",
+    "internal/client/client_test.go": "08af62a455429440d333b89076e19f39d1ea7da64cbaff67654cc7f03524f06e"
   },
   "auth_context": {
     "type": "username_password",
