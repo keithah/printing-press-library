@@ -2,6 +2,43 @@
   "schema_version": 2,
   "entries": [
     {
+      "name": "homeclaw",
+      "category": "smart-home",
+      "api": "HomeClaw",
+      "description": "A safe macOS Printing Press wrapper for HomeClaw's HomeKit CLI and stdio MCP server.",
+      "search_terms": [
+        "homeclaw",
+        "homeclaw-pp-cli",
+        "HomeKit",
+        "smart home",
+        "HomeClaw macOS CLI",
+        "HomeClaw stdio MCP server"
+      ],
+      "path": "library/devices/homeclaw",
+      "release": {
+        "cli_name": "homeclaw-pp-cli",
+        "version": "0.1.0",
+        "released_at": "2026-08-26T00:00:00Z",
+        "source_commit": "pending"
+      },
+      "printer": "keithah",
+      "printer_name": "Keith Herrington",
+      "creator": {
+        "handle": "keithah",
+        "name": "Keith Herrington"
+      },
+      "mcp": {
+        "binary": "homeclaw-pp-cli",
+        "transports": ["stdio"],
+        "tool_count": 10,
+        "public_tool_count": 10,
+        "auth_type": "none",
+        "env_vars": ["HOMECLAW_CLI_PATH", "HOMECLAW_MCP_SERVER_PATH", "HOMECLAW_NODE_PATH"],
+        "mcp_ready": "full",
+        "spec_format": "internal"
+      }
+    },
+    {
       "name": "1688",
       "category": "commerce",
       "api": "1688",
