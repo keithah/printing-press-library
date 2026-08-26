@@ -712,7 +712,6 @@ func (c *Client) CallWithPushFallback(ctx context.Context, event string, data an
 func (c *Client) collectStashedEvents(ctx context.Context, name string, wait time.Duration) (json.RawMessage, error) {
 	deadline := time.Now().Add(wait)
 	var payloads []json.RawMessage
-	lastEvent := time.Time{}
 	for {
 		for {
 			raw := c.takeStashedEvent(name)
@@ -720,14 +719,6 @@ func (c *Client) collectStashedEvents(ctx context.Context, name string, wait tim
 				break
 			}
 			payloads = append(payloads, raw)
-			lastEvent = time.Now()
-		}
-		if len(payloads) > 0 && time.Since(lastEvent) >= 75*time.Millisecond {
-			if len(payloads) == 1 {
-				return payloads[0], nil
-			}
-			encoded, err := json.Marshal(payloads)
-			return encoded, err
 		}
 		if time.Now().After(deadline) {
 			if len(payloads) == 0 {
