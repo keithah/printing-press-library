@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -133,8 +134,18 @@ func fetchHeartbeats(ctx context.Context, client *kuma.Client) (map[string][]bea
 		return nil, err
 	}
 	var payloads []json.RawMessage
-	if json.Unmarshal(raw, &payloads) != nil || len(payloads) == 0 || (payloads[0][0] != '{' && payloads[0][0] != '[') {
-		payloads = []json.RawMessage{raw}
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) > 0 && trimmed[0] == '[' {
+		var elems []json.RawMessage
+		if json.Unmarshal(trimmed, &elems) == nil && len(elems) > 0 {
+			first := bytes.TrimSpace(elems[0])
+			if len(first) > 0 && (first[0] == '[' || first[0] == '{') {
+				payloads = elems
+			}
+		}
+	}
+	if len(payloads) == 0 {
+		payloads = []json.RawMessage{trimmed}
 	}
 	byMonitor := map[string][]beatRaw{}
 	for _, payload := range payloads {
@@ -184,14 +195,13 @@ func mergeHeartbeatPayload(dst map[string][]beatRaw, payload json.RawMessage) er
 }
 
 func runHealth(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, args []string, stdout, stderr io.Writer, urlF *string) error {
-	urlVal := fs.Lookup("url").Value.String()
 	if err := fs.Parse(args); err != nil {
 		return &exitError{ExitUsage}
 	}
 	if err := client.EnsureConnected(ctx); err != nil {
 		return err
 	}
-	return emit(stdout, map[string]any{"ok": true, "authenticated": true, "url": strings.TrimRight(urlVal, "/")})
+	return emit(stdout, map[string]any{"ok": true, "authenticated": true, "url": strings.TrimRight(*urlF, "/")})
 }
 
 func runMonitors(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, args []string, stdout, stderr io.Writer) error {
@@ -409,7 +419,7 @@ func runSetRetries(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, a
 		*valueF = *valueAlias
 	}
 	if *monitorF == 0 || *valueF < 0 {
-		return usageError(stderr, "--id and --value (>=0) are required")
+		return usageError(stderr, "--monitor/--id and --maxretries/--value (>=0) are required")
 	}
 	if err := client.EnsureConnected(ctx); err != nil {
 		return err
@@ -437,7 +447,6 @@ func runSetRetries(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, a
 		return emit(stdout, map[string]any{
 			"dry_run":   true,
 			"id":        chosen.ID,
-			"name":      chosen.Name,
 			"current":   current,
 			"would_set": *valueF,
 			"hint":      "re-run with --yes to apply",
@@ -454,18 +463,11 @@ func runSetRetries(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, a
 	}
 	obj["maxretries"] = *valueF
 	if list, has := obj["notificationIDList"]; has {
-		if arr, isArr := list.([]any); isArr {
-			mapped := map[string]bool{}
-			for _, item := range arr {
-				switch v := item.(type) {
-				case float64:
-					mapped[strconv.Itoa(int(v))] = true
-				case string:
-					mapped[v] = true
-				}
-			}
-			obj["notificationIDList"] = mapped
+		mapped, err := normalizeNotificationIDs(list)
+		if err != nil {
+			return fmt.Errorf("cannot safely preserve notificationIDList: %w", err)
 		}
+		obj["notificationIDList"] = mapped
 	}
 	ack, err := client.CallRaw(ctx, "editMonitor", obj)
 	if err != nil {
@@ -476,17 +478,28 @@ func runSetRetries(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, a
 	}
 	applied := false
 	for attempt := 0; attempt < 5 && !applied; attempt++ {
-		monitors2, _, fetchErr := fetchMonitors(ctx, client)
+		monitors2, raws2, fetchErr := fetchMonitors(ctx, client)
 		if fetchErr != nil {
 			return fetchErr
 		}
-		for _, m := range monitors2 {
+		for i, m := range monitors2 {
 			if m.ID == *monitorF && m.MaxRetries != nil && *m.MaxRetries == *valueF {
+				if ids1, e1 := notificationIDsFromRaw(fullRaw); e1 != nil {
+					return e1
+				} else if ids2, e2 := notificationIDsFromRaw(raws2[i]); e2 != nil || !sameBoolMap(ids1, ids2) {
+					return fmt.Errorf("readback changed notification configuration")
+				}
 				applied = true
 			}
 		}
 		if !applied && attempt < 4 {
-			time.Sleep(500 * time.Millisecond)
+			timer := time.NewTimer(500 * time.Millisecond)
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			}
 		}
 	}
 	return emit(stdout, map[string]any{
@@ -497,6 +510,91 @@ func runSetRetries(ctx context.Context, client *kuma.Client, fs *flag.FlagSet, a
 		"applied":              *valueF,
 		"verified_by_readback": applied,
 	})
+}
+
+func normalizeNotificationIDs(value any) (map[string]bool, error) {
+	mapped := map[string]bool{}
+	add := func(id string) error {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return fmt.Errorf("empty notification id")
+		}
+		mapped[id] = true
+		return nil
+	}
+	switch v := value.(type) {
+	case map[string]any:
+		for key := range v {
+			if err := add(key); err != nil {
+				return nil, err
+			}
+		}
+	case []any:
+		for _, item := range v {
+			switch item := item.(type) {
+			case float64:
+				if item != float64(int64(item)) {
+					return nil, fmt.Errorf("non-integral notification id")
+				}
+				if err := add(strconv.FormatInt(int64(item), 10)); err != nil {
+					return nil, err
+				}
+			case string:
+				if err := add(item); err != nil {
+					return nil, err
+				}
+			case map[string]any:
+				id, ok := item["id"]
+				if !ok {
+					return nil, fmt.Errorf("notification object missing id")
+				}
+				switch id := id.(type) {
+				case float64:
+					if id != float64(int64(id)) {
+						return nil, fmt.Errorf("non-integral notification id")
+					}
+					if err := add(strconv.FormatInt(int64(id), 10)); err != nil {
+						return nil, err
+					}
+				case string:
+					if err := add(id); err != nil {
+						return nil, err
+					}
+				default:
+					return nil, fmt.Errorf("unsupported notification id type")
+				}
+			default:
+				return nil, fmt.Errorf("unsupported notification entry")
+			}
+		}
+	default:
+		return nil, fmt.Errorf("unsupported notification list type")
+	}
+	return mapped, nil
+}
+
+func notificationIDsFromRaw(raw json.RawMessage) (map[string]bool, error) {
+	var obj map[string]any
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return nil, fmt.Errorf("invalid monitor readback: %w", err)
+	}
+	value, ok := obj["notificationIDList"]
+	if !ok {
+		return map[string]bool{}, nil
+	}
+	return normalizeNotificationIDs(value)
+}
+
+func sameBoolMap(a, b map[string]bool) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, value := range a {
+		if b[key] != value {
+			return false
+		}
+	}
+	return true
 }
 
 func checkAckOK(ack []byte) error {

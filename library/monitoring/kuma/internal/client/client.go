@@ -61,10 +61,12 @@ type Client struct {
 	stash   [][]byte // event records ("42...") seen while waiting for other packets
 	acks    map[int][]byte
 
-	readerOnce   sync.Once
-	nsConnected  chan struct{}
-	signalNSOnce sync.Once
-	ackCh        map[int]chan []byte
+	readerMu      sync.Mutex
+	readerRunning bool
+	readerCancel  context.CancelFunc
+	nsConnected   chan struct{}
+	signalNSOnce  sync.Once
+	ackCh         map[int]chan []byte
 }
 
 // noteAck remembers an ACK record seen before its emit was even made (the
@@ -199,7 +201,9 @@ func socketIOParse(base string) (*url.URL, error) {
 func (c *Client) do(ctx context.Context, u *url.URL, method string, body io.Reader) ([]byte, error) {
 	hc := c.cfg.HTTPClient
 	if hc == nil {
-		hc = &http.Client{Timeout: 30 * time.Second}
+		// Kuma's default Engine.IO ping interval is 25s and polling requests
+		// may remain open for pingInterval+pingTimeout.
+		hc = &http.Client{Timeout: 90 * time.Second}
 	}
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), body)
 	if err != nil {
@@ -215,7 +219,7 @@ func (c *Client) do(ctx context.Context, u *url.URL, method string, body io.Read
 		return nil, err
 	}
 	if os.Getenv("KUMA_PP_DEBUG") != "" {
-		fmt.Fprintf(os.Stderr, "[kuma-pp-debug] %s %s -> %d: %.300s\n", method, u.String(), resp.StatusCode, data)
+		fmt.Fprintf(os.Stderr, "[kuma-pp-debug] %s %s -> %d (%d bytes)\n", method, redactURL(u), resp.StatusCode, len(data))
 	}
 	if resp.StatusCode >= 400 {
 		return nil, &ProtocolError{Msg: fmt.Sprintf("HTTP %d: %.200s", resp.StatusCode, data)}
@@ -271,6 +275,14 @@ func parseEngineIO(payload []byte) []string {
 
 // connect performs the engine.io handshake and the Socket.IO namespace connect.
 func (c *Client) connect(ctx context.Context) error {
+	c.readerMu.Lock()
+	if c.readerCancel != nil {
+		c.readerCancel()
+		c.readerCancel = nil
+	}
+	c.readerMu.Unlock()
+	c.nsConnected = make(chan struct{})
+	c.signalNSOnce = sync.Once{}
 	base, err := socketIOParse(c.cfg.BaseURL)
 	if err != nil {
 		return err
@@ -302,7 +314,7 @@ func (c *Client) connect(ctx context.Context) error {
 				http: c.cfg.HTTPClient,
 			}
 			if c.sess.http == nil {
-				c.sess.http = &http.Client{Timeout: 30 * time.Second}
+				c.sess.http = &http.Client{Timeout: 90 * time.Second}
 			}
 			opened = true
 		}
@@ -330,66 +342,96 @@ func (c *Client) connect(ctx context.Context) error {
 // server->client packets (acks, pushes, pings). It answers engine.io PINGs
 // with PONG and records every packet it sees.
 func (c *Client) startReader(ctx context.Context) {
-	c.readerOnce.Do(func() {
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
+	readerCtx, cancel := context.WithCancel(ctx)
+	c.readerMu.Lock()
+	if c.readerRunning {
+		cancel()
+		c.readerMu.Unlock()
+		return
+	}
+	c.readerRunning = true
+	c.readerCancel = cancel
+	c.readerMu.Unlock()
+	go func() {
+		defer func() {
+			c.readerMu.Lock()
+			c.readerRunning = false
+			c.readerCancel = nil
+			c.readerMu.Unlock()
+		}()
+		for {
+			select {
+			case <-readerCtx.Done():
+				return
+			default:
+			}
+			data, err := c.do(readerCtx, c.pollURL(), http.MethodGet, nil)
+			if err != nil {
+				if readerCtx.Err() != nil {
 					return
-				default:
 				}
-				data, err := c.do(ctx, c.pollURL(), http.MethodGet, nil)
-				if err != nil {
-					if ctx.Err() != nil {
-						return
+				timer := time.NewTimer(500 * time.Millisecond)
+				select {
+				case <-timer.C:
+				case <-readerCtx.Done():
+					timer.Stop()
+					return
+				}
+				continue
+			}
+			body := strings.TrimSpace(string(data))
+			switch body {
+			case "":
+				continue // empty poll: server had nothing (shouldn't happen with hold-open)
+			case "2":
+				_, _ = c.do(readerCtx, c.emitURL(), http.MethodPost, strings.NewReader("3")) // PING -> PONG
+				continue
+			case "40":
+				c.signalNSOnce.Do(func() { close(c.nsConnected) })
+				continue
+			}
+			recs := parseEngineIO(data)
+			for _, rec := range recs {
+				switch {
+				case rec == "2":
+					_, _ = c.do(readerCtx, c.emitURL(), http.MethodPost, strings.NewReader("3"))
+				case rec == "40" || strings.HasPrefix(rec, "40{"):
+					c.signalNSOnce.Do(func() { close(c.nsConnected) })
+				case strings.HasPrefix(rec, "43"):
+					id := 0
+					rest := rec[2:]
+					i := 0
+					for i < len(rest) && rest[i] >= '0' && rest[i] <= '9' {
+						id = id*10 + int(rest[i]-'0')
+						i++
 					}
-					time.Sleep(500 * time.Millisecond)
-					continue
-				}
-				body := strings.TrimSpace(string(data))
-				switch body {
-				case "":
-					continue // empty poll: server had nothing (shouldn't happen with hold-open)
-				case "2":
-					_, _ = c.do(ctx, c.emitURL(), http.MethodPost, strings.NewReader("3")) // PING -> PONG
-					continue
-				case "40":
-					close(c.nsConnected)
-					continue
-				}
-				recs := parseEngineIO(data)
-				for _, rec := range recs {
-					switch {
-					case rec == "40" || strings.HasPrefix(rec, "40{"):
-						c.signalNSOnce.Do(func() { close(c.nsConnected) })
-					case strings.HasPrefix(rec, "43"):
-						id := 0
-						rest := rec[2:]
-						i := 0
-						for i < len(rest) && rest[i] >= '0' && rest[i] <= '9' {
-							id = id*10 + int(rest[i]-'0')
-							i++
+					if id > 0 {
+						c.stashMu.Lock()
+						if c.acks == nil {
+							c.acks = map[int][]byte{}
 						}
-						if id > 0 {
-							c.stashMu.Lock()
-							if c.acks == nil {
-								c.acks = map[int][]byte{}
-							}
-							c.acks[id] = []byte(rest[i:])
-							c.stashMu.Unlock()
-							c.signalAck(id)
-						}
-					default:
-						if len(rec) > 1 && rec[0] == '4' && rec[1] == '2' {
-							c.stashMu.Lock()
-							c.stash = append(c.stash, []byte(rec[2:]))
-							c.stashMu.Unlock()
-						}
+						c.acks[id] = []byte(rest[i:])
+						c.stashMu.Unlock()
+						c.signalAck(id)
+					}
+				default:
+					if len(rec) > 1 && rec[0] == '4' && rec[1] == '2' {
+						c.stashMu.Lock()
+						c.stash = append(c.stash, []byte(rec[2:]))
+						c.stashMu.Unlock()
 					}
 				}
 			}
-		}()
-	})
+		}
+	}()
+}
+
+func redactURL(u *url.URL) string {
+	copy := *u
+	if copy.User != nil {
+		copy.User = url.User("REDACTED")
+	}
+	return copy.String()
 }
 
 func (c *Client) pollURL() *url.URL {
@@ -532,10 +574,6 @@ func (c *Client) emitAck(ctx context.Context, event string, data any) ([]byte, e
 }
 
 func (c *Client) emitNoAck(ctx context.Context, event string, data any) error {
-	c.sess.mu.Lock()
-	c.sess.nextID++
-	id := c.sess.nextID
-	c.sess.mu.Unlock()
 	arg := ""
 	if data != nil {
 		b, err := json.Marshal(data)
@@ -544,7 +582,7 @@ func (c *Client) emitNoAck(ctx context.Context, event string, data any) error {
 		}
 		arg = "," + string(b)
 	}
-	frame := "42" + strconv.Itoa(id) + "[" + jsonString(event) + arg + "]"
+	frame := "42[" + jsonString(event) + arg + "]"
 	_, err := c.do(ctx, c.emitURL(), http.MethodPost, strings.NewReader(frame))
 	return err
 }

@@ -143,7 +143,7 @@ func runCLIApply(t *testing.T, f *fakeKuma, args ...string) (int, string, string
 	f.queue = append(f.queue,
 		rec(`433{"ok":true,"msg":"Saved."}`),
 		rec(`434{"ok":true}`),
-		rec(`42["monitorList",{"43":{"id":43,"name":"canary-test","type":"http","interval":60,"maxretries":2,"active":true}}]`),
+		rec(`42["monitorList",{"43":{"id":43,"name":"canary-test","type":"http","interval":60,"maxretries":2,"active":true,"notificationIDList":[{"id":2,"name":"alerts"},{"id":5,"name":"pager"}]}}]`),
 	)
 	f.mu.Unlock()
 	var out, errb bytes.Buffer

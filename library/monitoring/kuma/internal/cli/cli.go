@@ -71,14 +71,16 @@ func Run(args []string, stdout, stderr io.Writer, env func(string) string) int {
 	passF := fs.String("password", env("UPTIME_KUMA_PASSWORD"), "password")
 	_ = fs.Bool("json", false, "JSON output") // reserved: machine output mode
 
+	baseURL, username, password := globalOverrides(args[1:], *urlF, *userF, *passF)
+	*urlF = baseURL
 	client := kuma.New(kuma.Config{
-		BaseURL:    strings.TrimRight(*urlF, "/"),
-		Username:   *userF,
-		Password:   *passF,
-		HTTPClient: &http.Client{Timeout: 20 * time.Second},
+		BaseURL:    strings.TrimRight(baseURL, "/"),
+		Username:   username,
+		Password:   password,
+		HTTPClient: &http.Client{Timeout: 90 * time.Second},
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	var err error
 	switch cmd {
@@ -94,6 +96,21 @@ func Run(args []string, stdout, stderr io.Writer, env func(string) string) int {
 		err = runSetRetries(ctx, client, fs, args[1:], stdout, stderr)
 	}
 	return classifyErr(err, stderr)
+}
+
+func globalOverrides(args []string, baseURL, username, password string) (string, string, string) {
+	values := map[string]*string{"url": &baseURL, "username": &username, "password": &password}
+	for i := 0; i < len(args); i++ {
+		for name, dst := range values {
+			if strings.HasPrefix(args[i], "--"+name+"=") {
+				*dst = strings.TrimPrefix(args[i], "--"+name+"=")
+			} else if args[i] == "--"+name && i+1 < len(args) {
+				i++
+				*dst = args[i]
+			}
+		}
+	}
+	return baseURL, username, password
 }
 
 func classifyErr(err error, stderr io.Writer) int {
@@ -112,7 +129,7 @@ func classifyErr(err error, stderr io.Writer) int {
 	switch {
 	case strings.Contains(msg, "auth failed"):
 		return ExitAuth
-	case strings.Contains(msg, "timeout"), strings.Contains(msg, "deadline exceeded"):
+	case strings.Contains(msg, "timeout"), strings.Contains(msg, "timed out"), strings.Contains(msg, "deadline exceeded"):
 		return ExitTimeout
 	case strings.Contains(msg, "connection refused"), strings.Contains(msg, "no such host"),
 		strings.Contains(msg, "handshake failed"):

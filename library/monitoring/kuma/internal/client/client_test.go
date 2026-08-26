@@ -230,6 +230,31 @@ func TestFullPayloadAckAcceptedWithoutPush(t *testing.T) {
 	}
 }
 
+func TestFramedPingProducesPong(t *testing.T) {
+	f := newFakeKuma(t)
+	loginClient(t, context.Background(), f)
+	f.enqueue(`2`)
+	time.Sleep(100 * time.Millisecond)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, body := range f.emits {
+		if body == "3" {
+			return
+		}
+	}
+	t.Fatalf("reader did not answer framed PING: %#v", f.emits)
+}
+
+func TestRepeatedNamespaceConnectDoesNotPanic(t *testing.T) {
+	f := newFakeKuma(t)
+	c := newClient(f)
+	if err := c.connect(context.Background()); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	f.enqueue(`40`, `40`)
+	time.Sleep(100 * time.Millisecond)
+}
+
 func TestHeartbeatCollectionKeepsMultiplePushes(t *testing.T) {
 	f := newFakeKuma(t)
 	c := loginClient(t, context.Background(), f)
