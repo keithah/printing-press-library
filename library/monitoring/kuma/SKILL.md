@@ -25,7 +25,11 @@ go install github.com/mvanhorn/printing-press-library/library/monitoring/kuma/cm
 If `--version` reports "command not found" after install, the runtime cannot see the binary directory on `$PATH`. Do not proceed with skill commands until verification succeeds.
 
 
-Use `kuma-pp-cli` for authenticated Kuma v2 inspection. Credentials come from `UPTIME_KUMA_URL`, `UPTIME_KUMA_USERNAME`, and `UPTIME_KUMA_PASSWORD`.
+Use `kuma-pp-cli` for authenticated Kuma v2 inspection. Credentials come from `UPTIME_KUMA_URL`, `UPTIME_KUMA_USERNAME`, and `UPTIME_KUMA_PASSWORD`. `UPTIME_KUMA_URL` must be the server origin (for example `https://kuma.example.com`), not a dashboard page URL.
+
+## Discovering the command surface
+
+Run `kuma-pp-cli agent-context --pretty` to get machine-readable JSON describing every command, flag, and auth variable. Prefer this over parsing `--help`. Commands annotated `mcp:read-only` are safe to run unattended; `set-retries` is annotated `mcp:destructive`.
 
 ## Investigation
 
