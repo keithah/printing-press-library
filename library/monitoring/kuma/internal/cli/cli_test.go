@@ -323,6 +323,121 @@ func TestUnknownCommandUsage(t *testing.T) {
 	}
 }
 
+// TestSubcommandHelpNeverPrintsCredentials pins a live-only defect: binding
+// credentials as flag defaults caused `<command> --help` to print the real
+// username and password, which then landed in harness logs and artifacts.
+func TestSubcommandHelpNeverPrintsCredentials(t *testing.T) {
+	const secret = "s3cr3t-should-never-appear"
+	envs := map[string]string{
+		"UPTIME_KUMA_URL":      "https://kuma.example.com",
+		"UPTIME_KUMA_USERNAME": "operator-name",
+		"UPTIME_KUMA_PASSWORD": secret,
+	}
+	for _, cmd := range []string{"health", "monitors", "heartbeats", "incident-context", "set-retries"} {
+		var out, errb bytes.Buffer
+		code := Run([]string{cmd, "--help"}, &out, &errb, func(k string) string { return envs[k] })
+		combined := out.String() + errb.String()
+		if code != ExitOK {
+			t.Errorf("%s --help exit=%d, want %d", cmd, code, ExitOK)
+		}
+		if out.Len() == 0 {
+			t.Errorf("%s --help wrote nothing to stdout", cmd)
+		}
+		if !strings.Contains(out.String(), "Examples:") {
+			t.Errorf("%s --help is missing an Examples section", cmd)
+		}
+		if strings.Contains(combined, secret) {
+			t.Errorf("%s --help leaked the password", cmd)
+		}
+		if strings.Contains(combined, "operator-name") {
+			t.Errorf("%s --help leaked the username", cmd)
+		}
+	}
+}
+
+func TestNormalizeBaseURLReducesToOrigin(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"https://kuma.example.com/dashboard", "https://kuma.example.com"},
+		{"https://kuma.example.com/dashboard/123", "https://kuma.example.com"},
+		{"https://kuma.example.com/", "https://kuma.example.com"},
+		{"https://kuma.example.com", "https://kuma.example.com"},
+		{"http://10.0.0.5:3001/dashboard?tab=x", "http://10.0.0.5:3001"},
+		{"", ""},
+	} {
+		if got := normalizeBaseURL(tc.in); got != tc.want {
+			t.Errorf("normalizeBaseURL(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// TestAgentContextIsSelfDescribing verifies the contract the Phase 5
+// live-dogfood harness relies on to discover the command surface.
+func TestAgentContextIsSelfDescribing(t *testing.T) {
+	var buf bytes.Buffer
+	if err := runAgentContext(&buf, nil); err != nil {
+		t.Fatalf("agent-context: %v", err)
+	}
+	var ctx struct {
+		SchemaVersion string `json:"schema_version"`
+		CLI           struct {
+			Name    string `json:"name"`
+			Version string `json:"version"`
+		} `json:"cli"`
+		Auth struct {
+			Mode    string `json:"mode"`
+			EnvVars []struct {
+				Name      string `json:"name"`
+				Sensitive bool   `json:"sensitive"`
+			} `json:"env_vars"`
+		} `json:"auth"`
+		Commands []struct {
+			Name        string            `json:"name"`
+			Annotations map[string]string `json:"annotations"`
+		} `json:"commands"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &ctx); err != nil {
+		t.Fatalf("agent-context is not valid JSON: %v", err)
+	}
+	if ctx.SchemaVersion == "" || ctx.CLI.Name != "kuma-pp-cli" || ctx.CLI.Version != version {
+		t.Fatalf("agent-context identity is wrong: %+v", ctx.CLI)
+	}
+	found := map[string]map[string]string{}
+	for _, c := range ctx.Commands {
+		found[c.Name] = c.Annotations
+	}
+	for _, want := range []string{"health", "monitors", "heartbeats", "incident-context", "set-retries"} {
+		if _, ok := found[want]; !ok {
+			t.Errorf("agent-context omits command %q", want)
+		}
+	}
+	// The write path must be advertised as destructive so the live matrix
+	// does not probe it against a production server.
+	if found["set-retries"]["mcp:destructive"] != "true" {
+		t.Errorf("set-retries must be annotated destructive, got %v", found["set-retries"])
+	}
+	if found["health"]["mcp:read-only"] != "true" {
+		t.Errorf("health must be annotated read-only, got %v", found["health"])
+	}
+	// Credentials must be flagged sensitive so agents never echo them.
+	for _, e := range ctx.Auth.EnvVars {
+		if e.Name == "UPTIME_KUMA_PASSWORD" && !e.Sensitive {
+			t.Error("UPTIME_KUMA_PASSWORD must be marked sensitive")
+		}
+	}
+}
+
+// TestAgentContextNeedsNoCredentials ensures introspection works with no
+// environment configured, since the harness runs it before auth is proven.
+func TestAgentContextNeedsNoCredentials(t *testing.T) {
+	var out, errb bytes.Buffer
+	if code := Run([]string{"agent-context"}, &out, &errb, func(string) string { return "" }); code != ExitOK {
+		t.Fatalf("exit=%d stderr=%s", code, errb.String())
+	}
+	if !json.Valid(out.Bytes()) {
+		t.Fatalf("agent-context emitted invalid JSON: %s", out.String())
+	}
+}
+
 func TestSetRetriesDocumentedAliases(t *testing.T) {
 	f := newFakeKuma(t)
 	code, out, errout := runCLIApply(t, f, "set-retries", "--monitor", "43", "--maxretries", "2", "--yes")

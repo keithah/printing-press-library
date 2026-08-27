@@ -8,11 +8,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	kuma "github.com/mvanhorn/printing-press-library/library/monitoring/kuma/internal/client"
 )
+
+// version is the single source of truth for the CLI version, shared by the
+// version command, --version, and the agent-context surface.
+const version = "2026.8.26"
 
 const usage = `kuma-pp-cli — Uptime Kuma v2 operator CLI
 
@@ -25,6 +30,7 @@ Commands:
   heartbeats        recent beats across monitors (--hours, default 3)
   incident-context  composite brief for one monitor (--monitor id|name)
   set-retries       change a monitor's maxretries (dry-run unless --yes)
+  agent-context     emit structured JSON describing this CLI for agents
   version           print version
 
 Global flags:
@@ -44,7 +50,7 @@ func Run(args []string, stdout, stderr io.Writer, env func(string) string) int {
 	}
 	cmd := args[0]
 	if cmd == "--version" || cmd == "-version" {
-		fmt.Fprintln(stdout, "kuma-pp-cli 2026.8.26")
+		fmt.Fprintln(stdout, "kuma-pp-cli "+version)
 		return ExitOK
 	}
 	if cmd == "-h" || cmd == "--help" || cmd == "help" {
@@ -54,24 +60,56 @@ func Run(args []string, stdout, stderr io.Writer, env func(string) string) int {
 	known := map[string]bool{
 		"health": true, "monitors": true, "heartbeats": true,
 		"incident-context": true, "set-retries": true, "version": true,
+		"agent-context": true,
 	}
 	if !known[cmd] {
 		fmt.Fprintf(stderr, "unknown command %q\n\n%s", cmd, usage)
 		return ExitUsage
 	}
 	if cmd == "version" {
-		fmt.Fprintln(stdout, "kuma-pp-cli 2026.8.26")
+		fmt.Fprintln(stdout, "kuma-pp-cli "+version)
+		return ExitOK
+	}
+	// agent-context describes the CLI itself and must not require credentials
+	// or a reachable server, so it is handled before any client construction.
+	if cmd == "agent-context" {
+		if err := runAgentContext(stdout, args[1:]); err != nil {
+			fmt.Fprintln(stderr, "error:", err)
+			return ExitError
+		}
 		return ExitOK
 	}
 
 	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	urlF := fs.String("url", env("UPTIME_KUMA_URL"), "Kuma base URL")
-	userF := fs.String("username", env("UPTIME_KUMA_USERNAME"), "username")
-	passF := fs.String("password", env("UPTIME_KUMA_PASSWORD"), "password")
+	// Flag defaults are rendered verbatim by flag.PrintDefaults, so binding
+	// credentials as defaults would print the username and password into
+	// `<command> --help` output and into any harness log that captures it.
+	// Declare them empty and resolve the environment separately.
+	urlF := fs.String("url", "", "Kuma base URL (default $UPTIME_KUMA_URL)")
+	userF := fs.String("username", "", "username (default $UPTIME_KUMA_USERNAME)")
+	passF := fs.String("password", "", "password (default $UPTIME_KUMA_PASSWORD)")
 	_ = fs.Bool("json", false, "JSON output") // reserved: machine output mode
 
-	baseURL, username, password := globalOverrides(args[1:], *urlF, *userF, *passF)
+	// `<command> --help` is a documented, successful query for that
+	// subcommand's flags, so it must print to stdout and exit 0 rather than
+	// being treated as a flag-parse error.
+	for _, a := range args[1:] {
+		if a == "-h" || a == "--help" || a == "help" {
+			fmt.Fprintf(stdout, "kuma-pp-cli %s\n\n%s\n\nFlags:\n", cmd, commandSynopsis[cmd])
+			fs.SetOutput(stdout)
+			fs.PrintDefaults()
+			fmt.Fprintf(stdout, "\nExamples:\n%s\n", commandExamples[cmd])
+			return ExitOK
+		}
+	}
+
+	baseURL, username, password := globalOverrides(args[1:],
+		firstNonEmpty(*urlF, env("UPTIME_KUMA_URL")),
+		firstNonEmpty(*userF, env("UPTIME_KUMA_USERNAME")),
+		firstNonEmpty(*passF, env("UPTIME_KUMA_PASSWORD")),
+	)
+	baseURL = normalizeBaseURL(baseURL)
 	*urlF = baseURL
 	client := kuma.New(kuma.Config{
 		BaseURL:    strings.TrimRight(baseURL, "/"),
@@ -111,6 +149,66 @@ func globalOverrides(args []string, baseURL, username, password string) (string,
 		}
 	}
 	return baseURL, username, password
+}
+
+// commandSynopsis and commandExamples back the per-subcommand help output.
+// Runnable examples are part of the help contract, not decoration: they are
+// what makes `--help` usable to an operator and to an agent introspecting the
+// CLI, so every command must carry at least one.
+var commandSynopsis = map[string]string{
+	"health":           "Check connectivity and authentication against the configured Uptime Kuma server.",
+	"monitors":         "List configured monitors, optionally filtered by a case-insensitive substring.",
+	"heartbeats":       "Show recent heartbeat history across monitors within a lookback window.",
+	"incident-context": "Build a composite incident brief for a single monitor.",
+	"set-retries":      "Change a monitor's retry count. Previews the change unless --yes is passed.",
+}
+
+var commandExamples = map[string]string{
+	"health": "  # Verify credentials and reachability\n" +
+		"  kuma-pp-cli health",
+	"monitors": "  # List every monitor\n" +
+		"  kuma-pp-cli monitors\n\n" +
+		"  # Filter by name\n" +
+		"  kuma-pp-cli monitors --query api",
+	"heartbeats": "  # Last 3 hours across all monitors\n" +
+		"  kuma-pp-cli heartbeats\n\n" +
+		"  # Last 6 hours for one monitor\n" +
+		"  kuma-pp-cli heartbeats --hours 6 --monitor-id 12",
+	"incident-context": "  # Brief for a monitor by id\n" +
+		"  kuma-pp-cli incident-context --monitor 12\n\n" +
+		"  # Widen the timeline window\n" +
+		"  kuma-pp-cli incident-context --monitor 12 --lookback-minutes 180",
+	"set-retries": "  # Preview the change (no write)\n" +
+		"  kuma-pp-cli set-retries --monitor 12 --maxretries 3\n\n" +
+		"  # Apply it\n" +
+		"  kuma-pp-cli set-retries --monitor 12 --maxretries 3 --yes",
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// normalizeBaseURL reduces a configured URL to the server origin. Operators
+// commonly copy the address out of a browser sitting on a dashboard page, so
+// the value arrives as ".../dashboard" or with a query string. The Socket.IO
+// endpoint lives at the origin, and appending "/socket.io/" to a page path
+// silently returns the dashboard HTML instead of an engine.io packet, which
+// surfaces much later as a confusing handshake error.
+func normalizeBaseURL(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return trimmed
+	}
+	u, err := url.Parse(trimmed)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return strings.TrimRight(trimmed, "/")
+	}
+	return u.Scheme + "://" + u.Host
 }
 
 func classifyErr(err error, stderr io.Writer) int {
