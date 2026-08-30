@@ -24,6 +24,16 @@ go install github.com/mvanhorn/printing-press-library/library/monitoring/kuma/cm
 
 If `--version` reports "command not found" after install, the runtime cannot see the binary directory on `$PATH`. Do not proceed with skill commands until verification succeeds.
 
+## Native HTTP MCP service
+
+This skill's `kuma-pp-cli` is the generated Go Socket.IO operator CLI, not the native `kumactl` MCP server. For MCP clients, install and deploy the separately published native service, then expose its Streamable HTTP endpoint with:
+
+```bash
+kumactl-mcp --transport streamable-http --host 127.0.0.1 --port 40108 --path /mcp
+```
+
+The native service and this CLI use the preserved `UPTIME_KUMA_URL`, `UPTIME_KUMA_USERNAME`, and `UPTIME_KUMA_PASSWORD` environment variables. Do not substitute `kumactl-mcp` for the commands below; this package has no `kumactl` dependency or embedded MCP transport.
+
 
 Use `kuma-pp-cli` for authenticated Kuma v2 inspection. Credentials come from `UPTIME_KUMA_URL`, `UPTIME_KUMA_USERNAME`, and `UPTIME_KUMA_PASSWORD`. `UPTIME_KUMA_URL` must be the server origin (for example `https://kuma.example.com`), not a dashboard page URL.
 
