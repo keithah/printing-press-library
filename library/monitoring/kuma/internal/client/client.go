@@ -198,6 +198,19 @@ func socketIOParse(base string) (*url.URL, error) {
 	return u, nil
 }
 
+const maxResponseBodyBytes = 10 << 20
+
+func readResponseBody(body io.Reader) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(body, maxResponseBodyBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxResponseBodyBytes {
+		return nil, fmt.Errorf("response body exceeds %d-byte limit", maxResponseBodyBytes)
+	}
+	return data, nil
+}
+
 func (c *Client) do(ctx context.Context, u *url.URL, method string, body io.Reader) ([]byte, error) {
 	hc := c.cfg.HTTPClient
 	if hc == nil {
@@ -214,7 +227,7 @@ func (c *Client) do(ctx context.Context, u *url.URL, method string, body io.Read
 		return nil, err
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
+	data, err := readResponseBody(resp.Body)
 	if err != nil {
 		return nil, err
 	}

@@ -286,6 +286,21 @@ func TestHTTPClientTimeoutBoundsHandshake(t *testing.T) {
 		t.Fatalf("timeout took too long: %v", time.Since(started))
 	}
 }
+
+func TestDoRejectsOversizedResponseBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, strings.Repeat("x", 10<<20+1))
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL})
+	u, err := socketIOParse(srv.URL)
+	if err != nil {
+		t.Fatalf("socketIOParse: %v", err)
+	}
+	if _, err := c.do(context.Background(), u, http.MethodGet, nil); err == nil {
+		t.Fatal("expected oversized response body to be rejected")
+	}
+}
 func TestHeartbeatCollectionKeepsMultipleObjectPushes(t *testing.T) {
 	f := newFakeKuma(t)
 	c := loginClient(t, context.Background(), f)
