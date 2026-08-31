@@ -53,5 +53,24 @@
       "command": "serve",
       "description": "Verify library metadata and read a bounded byte range from a playable media part."
     }
-  ]
+  ],
+  "verify": {
+    "mode": "mock",
+    "pass_rate": 99.5475113122172,
+    "passed": 220,
+    "total": 221,
+    "failed": 1,
+    "data_pipeline": true,
+    "verdict": "PASS"
+  },
+  "scorecard": {
+    "steinberger": {
+      "percentage": 93,
+      "grade": "A (1 of 25 dimensions unverified: live_api_verification)",
+      "total": 93
+    },
+    "unverified_dimensions": [
+      "live_api_verification"
+    ]
+  }
 }
