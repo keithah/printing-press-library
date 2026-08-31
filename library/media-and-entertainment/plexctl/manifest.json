@@ -1,0 +1,65 @@
+{
+  "manifest_version": "0.3",
+  "name": "plexctl-pp-mcp",
+  "display_name": "Plex Media Server",
+  "version": "1.2.2",
+  "description": "## Content Types The API supports responses in both XML and JSON",
+  "author": {
+    "name": "CLI Printing Press"
+  },
+  "license": "Apache-2.0",
+  "server": {
+    "type": "binary",
+    "entry_point": "bin/plexctl-pp-mcp",
+    "mcp_config": {
+      "command": "${__dirname}/bin/plexctl-pp-mcp",
+      "args": [],
+      "env": {
+        "PLEXCTL_BASE_URL": "${user_config.plexctl_base_url}",
+        "PLEXCTL_IDENTIFIER": "${user_config.plexctl_identifier}",
+        "PLEXCTL_PORT": "${user_config.plexctl_port}",
+        "PLEXCTL_USER_AGENT": "${user_config.plexctl_user_agent}",
+        "PLEXCTL_USER_TOKEN": "${user_config.plexctl_user_token}"
+      }
+    }
+  },
+  "user_config": {
+    "plexctl_base_url": {
+      "type": "string",
+      "title": "PLEXCTL_BASE_URL",
+      "description": "Optional. Sets PLEXCTL_BASE_URL for the Plex Media Server MCP server. Per-instance, non-secret setting; not a credential."
+    },
+    "plexctl_identifier": {
+      "type": "string",
+      "title": "PLEXCTL_IDENTIFIER",
+      "description": "Sets PLEXCTL_IDENTIFIER for the endpoint template variable {identifier}.",
+      "default": "0123456789abcdef0123456789abcdef"
+    },
+    "plexctl_port": {
+      "type": "string",
+      "title": "PLEXCTL_PORT",
+      "description": "Sets PLEXCTL_PORT for the endpoint template variable {port}.",
+      "default": "32400"
+    },
+    "plexctl_user_agent": {
+      "type": "string",
+      "title": "PLEXCTL_USER_AGENT",
+      "description": "Optional. Sets PLEXCTL_USER_AGENT for the Plex Media Server MCP server. Per-instance, non-secret setting; not a credential."
+    },
+    "plexctl_user_token": {
+      "type": "string",
+      "title": "PLEXCTL_USER_TOKEN",
+      "description": "Sets PLEXCTL_USER_TOKEN for the Plex Media Server MCP server. Get a credential from https://...`.",
+      "sensitive": true,
+      "required": true
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": [
+      "darwin",
+      "linux",
+      "win32"
+    ]
+  }
+}

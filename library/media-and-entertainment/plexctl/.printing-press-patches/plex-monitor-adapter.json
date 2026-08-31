@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "id": "plex-monitor-adapter",
+  "applied_at": "2026-08-31T00:00:00Z",
+  "base_run_id": "local-plexctl-generation",
+  "base_printing_press_version": "local-cli-printing-press",
+  "files": [
+    "internal/cli/plex_monitor.go",
+    "internal/plexruntime/api/",
+    "internal/plexruntime/authstore/",
+    "internal/plexruntime/config/",
+    "internal/plexruntime/health/",
+    "internal/plexruntime/monitor/",
+    "internal/plexruntime/plexauth/",
+    "internal/plexruntime/pms/"
+  ],
+  "summary": "Adds the Plex.tv-backed multi-account monitor adapter and bounded media health probes to the generated Plex CLI.",
+  "reason": "The existing monitor contract must remain available while Plex-specific discovery, credential isolation, and media-byte verification are exposed through the generated CLI's novel-command hook.",
+  "validated_outcome": "Generated CLI and MCP tree builds and tests; serve preserves /plex/<account>/<server> status semantics and is deployed behind the existing plexctl-monitor:3003 service boundary without changing Kuma monitor records."
+}
