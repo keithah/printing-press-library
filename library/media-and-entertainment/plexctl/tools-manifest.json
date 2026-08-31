@@ -649,7 +649,7 @@
     },
     {
       "name": "hubs_get-search",
-      "description": "Perform a search and get the result as hubs This endpoint performs a search across all library sections, or a single section, and returns matches as hubs, split up by type. It performs spell checking, looks for partial matches, and orders the hubs based on quality of results. In addition, based on matches, it will return other related matches (e.g. for a genre match, it may return movies in that genre, or for an actor match, movies with that actor). In the response's items, the following extra attributes are returned to further describe or disambiguate the result: - `reason`: The reason for the result, if not because of a direct search term match; can be either: - `section`: There are multiple identical results from different sections. - `originalTitle`: There was a search term match from the original title field (sometimes those can be very different or in a foreign language). - `\u003chub identifier\u003e`: If the reason for the result is due to a result in another hub, the source hub identifier is returned. For example, if the search is for 'dylan' then Bob Dylan may be returned as an artist result, an a few of his albums returned as album results with a reason code of `artist` (the identifier of that particular hub). Or if the search is for 'arnold', there might be movie results returned with a reason of `actor` - `reasonTitle`: The string associated with the reason code. For a section reason, it'll be the section name; For a hub identifier, it'll be a string associated with the match (e.g. `Arnold Schwarzenegger` for movies which were returned because the search was for 'arnold'). - `reasonID`: The ID of the item associated with the reason for the result. This might be a section ID, a tag ID, an artist ID, or a show ID. This request is intended to be very fast, and called as the user types. Required: query. Optional: sectionId, limit.",
+      "description": "Perform a search and get the result as hubs This endpoint performs a search across all library sections, or a single section, and returns matches as hubs, split up by type. It performs spell checking, looks for partial matches, and orders the hubs based on quality of results. In addition, based on matches, it will return other related matches (e.g. for a genre match, it may return movies in that genre, or for an actor match, movies with that actor). In the response's items, the following extra attributes are returned to further describe or disambiguate the result: - `reason`: The reason for the result, if not because of a direct search term match; can be either: - `section`: There are multiple identical results from different sections. - `originalTitle`: There was a search term match from the original title field (sometimes those can be very different or in a foreign language). - `<hub identifier>`: If the reason for the result is due to a result in another hub, the source hub identifier is returned. For example, if the search is for 'dylan' then Bob Dylan may be returned as an artist result, an a few of his albums returned as album results with a reason code of `artist` (the identifier of that particular hub). Or if the search is for 'arnold', there might be movie results returned with a reason of `actor` - `reasonTitle`: The string associated with the reason code. For a section reason, it'll be the section name; For a hub identifier, it'll be a string associated with the match (e.g. `Arnold Schwarzenegger` for movies which were returned because the search was for 'arnold'). - `reasonID`: The ID of the item associated with the reason for the result. This might be a section ID, a tag ID, an artist ID, or a show ID. This request is intended to be very fast, and called as the user types. Required: query. Optional: sectionId, limit.",
       "method": "GET",
       "path": "/hubs/search",
       "params": [
@@ -1500,7 +1500,7 @@
     },
     {
       "name": "library_get-sections",
-      "description": "A library section (commonly referred to as just a library) is a collection of media. Libraries are typed, and depending on their type provide either a flat or a hierarchical view of the media. For example, a music library has an artist \u003e albums \u003e tracks structure, whereas a movie library is flat. Libraries have features beyond just being a collection of media; for starters, they include information about supported types, filters and sorts. This allows a client to provide a rich interface around the media (e.g. allow sorting movies by release year). Returns the LibraryGetSectionsResponse.",
+      "description": "A library section (commonly referred to as just a library) is a collection of media. Libraries are typed, and depending on their type provide either a flat or a hierarchical view of the media. For example, a music library has an artist > albums > tracks structure, whereas a movie library is flat. Libraries have features beyond just being a collection of media; for starters, they include information about supported types, filters and sorts. This allows a client to provide a rich interface around the media (e.g. allow sorting movies by release year). Returns the LibraryGetSectionsResponse.",
       "method": "GET",
       "path": "/library/sections/all",
       "params": []
@@ -3587,7 +3587,7 @@
     },
     {
       "name": "library_section-put-all",
-      "description": "This endpoint takes an large possible set of values. Here are some examples. - **Parameters, extra documentation** - artist.title.value - When used with track, both artist.title.value and album.title.value need to be specified - title.value usage - Summary - Tracks always rename and never merge - Albums and Artists - if single item and item without title does not exist, it is renamed. - if single item and item with title does exist they are merged. - if multiple they are always merged. - Tracks - Works as expected will update the track's title - Single track: `/library/sections/{id}/all?type=10\u0026id=42\u0026title.value=NewName` - Multiple tracks: `/library/sections/{id}/all?type=10\u0026id=42,43,44\u0026title.value=NewName` - All tracks: `/library/sections/{id}/all?type=10\u0026title.value=NewName` - Albums - Functionality changes depending on the existence of an album with the same title - Album exists - Single album: `/library/sections/{id}/all?type=9\u0026id=42\u0026title.value=Album 2` - Album with id 42 is merged into album titled 'Album 2' - Multiple/All albums: `/library/sections/{id}/all?type=9\u0026title.value=Moo Album` - All albums are merged into the existing album titled 'Moo Album' - Album does not exist - Single album: `/library/sections/{id}/all?type=9\u0026id=42\u0026title.value=NewAlbumTitle` - Album with id 42 has title modified to 'NewAlbumTitle' - Multiple/All albums: `/library/sections/{id}/all?type=9\u0026title.value=NewAlbumTitle` - All albums are merged into a new album with title='NewAlbumTitle' - Artists - Functionaly changes depending on the existence of an artist with the same title. - Artist exists - Single artist: `/library/sections/{id}/all?type=8\u0026id=42\u0026title.value=Artist 2` - Artist with id 42 is merged into existing artist titled 'Artist 2' - Multiple/All artists: `/library/sections/{id}/all?type=8\u0026title.value=Artist 3` - All artists are merged into the existing artist titled 'Artist 3' - Artist does not exist - Single artist: `/library/sections/{id}/all?type=8\u0026id=42\u0026title.value=NewArtistTitle` - Artist with id 42 has title modified to 'NewArtistTitle' - Multiple/All artists: `/library/sections/{id}/all?type=8\u0026title.value=NewArtistTitle` - All artists are merged into a new artist with title='NewArtistTitle' - **Notes** - Technically square brackets are not allowed in an URI except the Internet Protocol Literal Address - RFC3513: A host identified by an Internet Protocol literal address, version 6 [RFC3513] or later, is distinguished by enclosing the IP literal within square brackets ('[' and ']'). This is the only place where square bracket characters are allowed in the URI syntax. - Escaped square brackets are allowed, but don't render well. Required: sectionId. Optional: type, filters, field.value (plus 10 more).",
+      "description": "This endpoint takes an large possible set of values. Here are some examples. - **Parameters, extra documentation** - artist.title.value - When used with track, both artist.title.value and album.title.value need to be specified - title.value usage - Summary - Tracks always rename and never merge - Albums and Artists - if single item and item without title does not exist, it is renamed. - if single item and item with title does exist they are merged. - if multiple they are always merged. - Tracks - Works as expected will update the track's title - Single track: `/library/sections/{id}/all?type=10&id=42&title.value=NewName` - Multiple tracks: `/library/sections/{id}/all?type=10&id=42,43,44&title.value=NewName` - All tracks: `/library/sections/{id}/all?type=10&title.value=NewName` - Albums - Functionality changes depending on the existence of an album with the same title - Album exists - Single album: `/library/sections/{id}/all?type=9&id=42&title.value=Album 2` - Album with id 42 is merged into album titled 'Album 2' - Multiple/All albums: `/library/sections/{id}/all?type=9&title.value=Moo Album` - All albums are merged into the existing album titled 'Moo Album' - Album does not exist - Single album: `/library/sections/{id}/all?type=9&id=42&title.value=NewAlbumTitle` - Album with id 42 has title modified to 'NewAlbumTitle' - Multiple/All albums: `/library/sections/{id}/all?type=9&title.value=NewAlbumTitle` - All albums are merged into a new album with title='NewAlbumTitle' - Artists - Functionaly changes depending on the existence of an artist with the same title. - Artist exists - Single artist: `/library/sections/{id}/all?type=8&id=42&title.value=Artist 2` - Artist with id 42 is merged into existing artist titled 'Artist 2' - Multiple/All artists: `/library/sections/{id}/all?type=8&title.value=Artist 3` - All artists are merged into the existing artist titled 'Artist 3' - Artist does not exist - Single artist: `/library/sections/{id}/all?type=8&id=42&title.value=NewArtistTitle` - Artist with id 42 has title modified to 'NewArtistTitle' - Multiple/All artists: `/library/sections/{id}/all?type=8&title.value=NewArtistTitle` - All artists are merged into a new artist with title='NewArtistTitle' - **Notes** - Technically square brackets are not allowed in an URI except the Internet Protocol Literal Address - RFC3513: A host identified by an Internet Protocol literal address, version 6 [RFC3513] or later, is distinguished by enclosing the IP literal within square brackets ('[' and ']'). This is the only place where square bracket characters are allowed in the URI syntax. - Escaped square brackets are allowed, but don't render well. Required: sectionId. Optional: type, filters, field.value (plus 10 more).",
       "method": "PUT",
       "path": "/library/sections/{sectionId}/all",
       "params": [
@@ -5746,7 +5746,7 @@
           "name": "Item",
           "type": "object",
           "location": "query",
-          "description": "Note: OpenAPI cannot properly render this query parameter example ([See GHI](https://github.com/OAI/OpenAPI-Specification/issues/1706)). It should be rendered as: Item[type]=42\u0026Item[title]=Jack-Jack Attack\u0026Item[target]=\u0026Item[targetTagID]=1\u0026Item[locationID]=-1\u0026Item[Location][uri]=library://82503060-0d68-4603-b594-8b071d54819e/item//library/metadata/146\u0026Item[Policy][scope]=all\u0026Item[Policy][value]=\u0026Item[Policy][unwatched]=0"
+          "description": "Note: OpenAPI cannot properly render this query parameter example ([See GHI](https://github.com/OAI/OpenAPI-Specification/issues/1706)). It should be rendered as: Item[type]=42&Item[title]=Jack-Jack Attack&Item[target]=&Item[targetTagID]=1&Item[locationID]=-1&Item[Location][uri]=library://82503060-0d68-4603-b594-8b071d54819e/item//library/metadata/146&Item[Policy][scope]=all&Item[Policy][value]=&Item[Policy][unwatched]=0"
         }
       ]
     },
@@ -5986,7 +5986,7 @@
           "name": "viewedAt",
           "type": "int",
           "location": "query",
-          "description": "The time period to restrict history (typically of the form `viewedAt\u003e=12456789`)"
+          "description": "The time period to restrict history (typically of the form `viewedAt>=12456789`)"
         },
         {
           "name": "librarySectionID",
@@ -6173,7 +6173,7 @@
           "name": "skip",
           "type": "int",
           "location": "query",
-          "description": "Indicate that the latest version should be marked as skipped. The \u003cRelease\u003e entry for this version will have the `state` set to `skipped`."
+          "description": "Indicate that the latest version should be marked as skipped. The <Release> entry for this version will have the `state` set to `skipped`."
         }
       ],
       "header_overrides": [
@@ -6202,6 +6202,23 @@
           "value": "text/html"
         }
       ]
+    }
+  ],
+  "novel_features": [
+    {
+      "name": "Plex monitor serve adapter",
+      "command": "serve",
+      "description": "Serve the preserved /plex/<account>/<server> health contract for Uptime Kuma."
+    },
+    {
+      "name": "Plex.tv resource refresh",
+      "command": "serve",
+      "description": "Refresh Plex.tv resources per health request and match servers by stable clientIdentifier."
+    },
+    {
+      "name": "Bounded media health probe",
+      "command": "serve",
+      "description": "Verify library metadata and read a bounded byte range from a playable media part."
     }
   ]
 }

@@ -6,7 +6,8 @@
   "display_name": "Plex Media Server",
   "cli_name": "plexctl-pp-cli",
   "creator": {
-    "handle": "keithah"
+    "handle": "keithah",
+    "name": "Keith Anderson"
   },
   "owner": "keithah",
   "printer": "keithah",
@@ -35,5 +36,22 @@
     "identifier": "0123456789abcdef0123456789abcdef",
     "port": "32400"
   },
-  "auth_key_url": "https://...`"
+  "auth_key_url": "https://...`",
+  "novel_features": [
+    {
+      "name": "Plex monitor serve adapter",
+      "command": "serve",
+      "description": "Serve the preserved /plex/<account>/<server> health contract for Uptime Kuma."
+    },
+    {
+      "name": "Plex.tv resource refresh",
+      "command": "serve",
+      "description": "Refresh Plex.tv resources per health request and match servers by stable clientIdentifier."
+    },
+    {
+      "name": "Bounded media health probe",
+      "command": "serve",
+      "description": "Verify library metadata and read a bounded byte range from a playable media part."
+    }
+  ]
 }

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "api_name": "plexctl",
+  "cli_name": "plexctl-pp-cli",
+  "run_id": "20260831-212825",
+  "status": "skip",
+  "skip_reason": "Live Plex API credential is intentionally unavailable to the publish validation environment; production monitor canary was verified separately without exposing credentials.",
+  "auth_context": {
+    "type": "api_key",
+    "api_key_available": false,
+    "browser_session_available": false,
+    "local_sqlite": false,
+    "local_network_only": true
+  },
+  "source_fingerprint": "local-generated-tree-073d50d9",
+  "source_files": {
+    "internal/cli/plex_monitor.go": "production-canary-verified",
+    "internal/plexruntime/health/health.go": "bounded-media-probe"
+  }
+}
