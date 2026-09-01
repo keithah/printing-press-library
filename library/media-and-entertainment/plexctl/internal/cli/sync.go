@@ -9,15 +9,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/spf13/cobra"
-	"io"
-	"net/url"
-	"os"
 	"github.com/mvanhorn/printing-press-library/library/media-and-entertainment/plexctl/internal/client"
 	"github.com/mvanhorn/printing-press-library/library/media-and-entertainment/plexctl/internal/cliutil"
 	"github.com/mvanhorn/printing-press-library/library/media-and-entertainment/plexctl/internal/learn"
 	"github.com/mvanhorn/printing-press-library/library/media-and-entertainment/plexctl/internal/learn/lookups"
 	"github.com/mvanhorn/printing-press-library/library/media-and-entertainment/plexctl/internal/store"
+	"github.com/spf13/cobra"
+	"io"
+	"net/url"
+	"os"
 	"regexp"
 	"slices"
 	"sort"
@@ -2129,7 +2129,7 @@ func parseRestSyncTimestamp(value string) (time.Time, bool) {
 }
 
 func defaultSyncResources() []string {
-	return []string{}
+	return []string{"library"}
 }
 
 // knownSyncResourceNames returns every resource name sync will accept —

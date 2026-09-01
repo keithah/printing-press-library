@@ -2551,6 +2551,13 @@ This checks your configuration and credentials.
 plexctl-pp-cli identity
 ```
 
+## Unique Features
+
+These capabilities aren't available in any other tool for this API.
+- **`serve`** — Serve the preserved /plex/<account>/<server> health contract for Uptime Kuma.
+- **`serve`** — Refresh Plex.tv resources per health request and match servers by stable clientIdentifier.
+- **`serve`** — Verify library metadata and read a bounded byte range from a playable media part.
+
 ## Usage
 
 Run `plexctl-pp-cli --help` for the full command reference and flag list.

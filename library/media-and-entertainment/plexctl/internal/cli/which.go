@@ -26,7 +26,11 @@ type whichEntry struct {
 // its hero features. Endpoint-level commands are discoverable via
 // `--help`; `which` exists to resolve a natural-language capability
 // query to one of the commands the skill says matter most.
-var whichIndex = []whichEntry{}
+var whichIndex = []whichEntry{
+	{Command: "serve", Description: "Serve the preserved /plex/<account>/<server> health contract for Uptime Kuma.", Group: "", WhyItMatters: ""},
+	{Command: "serve", Description: "Refresh Plex.tv resources per health request and match servers by stable clientIdentifier.", Group: "", WhyItMatters: ""},
+	{Command: "serve", Description: "Verify library metadata and read a bounded byte range from a playable media part.", Group: "", WhyItMatters: ""},
+}
 
 // whichMatch pairs an index entry with its ranking score for a query.
 // Higher score means stronger match. The ranker is naive (exact token

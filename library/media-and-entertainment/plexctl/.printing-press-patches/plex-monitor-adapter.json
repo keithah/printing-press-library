@@ -6,6 +6,8 @@
   "base_printing_press_version": "local-cli-printing-press",
   "files": [
     "internal/cli/plex_monitor.go",
+    "internal/cli/sync.go",
+    "internal/cli/sync_defaults_test.go",
     "internal/plexruntime/api/",
     "internal/plexruntime/authstore/",
     "internal/plexruntime/config/",

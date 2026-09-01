@@ -54,23 +54,37 @@
       "description": "Verify library metadata and read a bounded byte range from a playable media part."
     }
   ],
+  "novel_features_built": [
+    {
+      "name": "Plex monitor serve adapter",
+      "command": "serve",
+      "description": "Serve the preserved /plex/\u003caccount\u003e/\u003cserver\u003e health contract for Uptime Kuma."
+    },
+    {
+      "name": "Plex.tv resource refresh",
+      "command": "serve",
+      "description": "Refresh Plex.tv resources per health request and match servers by stable clientIdentifier."
+    },
+    {
+      "name": "Bounded media health probe",
+      "command": "serve",
+      "description": "Verify library metadata and read a bounded byte range from a playable media part."
+    }
+  ],
   "verify": {
-    "mode": "mock",
-    "pass_rate": 99.5475113122172,
-    "passed": 220,
-    "total": 221,
+    "mode": "live",
+    "pass_rate": 99.54954954954955,
+    "passed": 221,
+    "total": 222,
     "failed": 1,
     "data_pipeline": true,
-    "verdict": "PASS"
+    "verdict": "WARN"
   },
   "scorecard": {
     "steinberger": {
       "percentage": 93,
-      "grade": "A (1 of 25 dimensions unverified: live_api_verification)",
+      "grade": "A",
       "total": 93
-    },
-    "unverified_dimensions": [
-      "live_api_verification"
-    ]
+    }
   }
 }

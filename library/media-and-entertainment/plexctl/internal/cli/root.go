@@ -294,6 +294,11 @@ func newRootCmd(flags *rootFlags) *cobra.Command {
 		Short: "Manage plexctl resources via the plexctl API",
 		Long: `Manage plexctl resources via the plexctl API.
 
+Highlights (not in the official API docs):
+  • serve   Serve the preserved /plex/<account>/<server> health contract for Uptime Kuma.
+  • serve   Refresh Plex.tv resources per health request and match servers by stable clientIdentifier.
+  • serve   Verify library metadata and read a bounded byte range from a playable media part.
+
 Add --agent to any command for JSON output + non-interactive mode.
 Run 'plexctl-pp-cli doctor' to verify auth and connectivity.`,
 		SilenceUsage: true,

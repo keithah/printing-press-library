@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/mvanhorn/printing-press-library/library/media-and-entertainment/plexctl/internal/cliutil"
 )
 
 // maxResponseBytes bounds how much of a PMS response is buffered in memory.
@@ -24,6 +26,7 @@ type Client struct {
 	ClientID    string
 	APIVersion  string
 	InsecureTLS bool
+	Limiter     *cliutil.AdaptiveLimiter
 }
 
 func New(base, token string, hc *http.Client) (*Client, error) {
@@ -37,7 +40,7 @@ func New(base, token string, hc *http.Client) (*Client, error) {
 	if hc == nil {
 		hc = &http.Client{Timeout: 30 * time.Second}
 	}
-	return &Client{BaseURL: u, Token: token, HTTP: hc, ClientID: "plexctl", APIVersion: "1"}, nil
+	return &Client{BaseURL: u, Token: token, HTTP: hc, ClientID: "plexctl", APIVersion: "1", Limiter: cliutil.NewAdaptiveLimiterAuto(2)}, nil
 }
 
 // SetInsecureTLS enables or disables certificate verification for this client.
@@ -126,17 +129,27 @@ func (c *Client) doRaw(ctx context.Context, method, path string, query url.Value
 			req.Header.Add(key, value)
 		}
 	}
+	if err := c.Limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
 	resp, e := c.HTTP.Do(req)
 	if e != nil {
 		return nil, e
 	}
 	defer resp.Body.Close()
+	if remaining, resetAt, ok := cliutil.ParseRateLimitHeaders(resp.Header); ok {
+		c.Limiter.ObserveHeaders(remaining, resetAt)
+	}
 	// Read one byte past the cap so a body that exactly fills the limit can be
 	// distinguished from one that was truncated. Silently truncating would
 	// surface as a confusing "unexpected end of JSON input" decode error.
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("read %s %s response: %w", method, path, err)
+	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		c.Limiter.OnRateLimit()
+		return nil, &cliutil.RateLimitError{URL: u.String(), RetryAfter: cliutil.RetryAfter(resp), Body: safeDetail(data, c.Token)}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, &HTTPError{resp.StatusCode, method, path, safeDetail(data, c.Token)}

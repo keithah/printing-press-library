@@ -4,14 +4,17 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
+	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/mvanhorn/printing-press-library/library/media-and-entertainment/plexctl/internal/cliutil"
 	"github.com/mvanhorn/printing-press-library/library/media-and-entertainment/plexctl/internal/config"
+	"github.com/mvanhorn/printing-press-library/library/media-and-entertainment/plexctl/internal/plexruntime/plexauth"
+	"github.com/spf13/cobra"
 )
 
 func newAuthCmd(flags *rootFlags) *cobra.Command {
@@ -23,10 +26,88 @@ func newAuthCmd(flags *rootFlags) *cobra.Command {
 	}
 
 	cmd.AddCommand(newAuthSetupCmd(flags))
+	cmd.AddCommand(newAuthLoginCmd(flags))
 	cmd.AddCommand(newAuthStatusCmd(flags))
 	cmd.AddCommand(newAuthSetTokenCmd(flags))
 	cmd.AddCommand(newAuthLogoutCmd(flags))
 
+	return cmd
+}
+
+type plexLoginClient interface {
+	Login(context.Context) (plexauth.LoginResult, error)
+	User(context.Context, string) (plexauth.User, error)
+}
+
+type plexLoginOutcome struct {
+	Username string
+	PlexID   int
+}
+
+func completePlexLogin(ctx context.Context, configPath string, client plexLoginClient) (plexLoginOutcome, error) {
+	login, err := client.Login(ctx)
+	if err != nil {
+		return plexLoginOutcome{}, err
+	}
+	if login.Token == "" {
+		return plexLoginOutcome{}, fmt.Errorf("Plex authorization completed without an access token")
+	}
+	user, err := client.User(ctx, login.Token)
+	if err != nil {
+		return plexLoginOutcome{}, fmt.Errorf("verify Plex access token: %w", err)
+	}
+	if user.ID == 0 || user.Username == "" {
+		return plexLoginOutcome{}, fmt.Errorf("Plex token verification returned an incomplete account")
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		return plexLoginOutcome{}, err
+	}
+	if err := cfg.SaveCredential(login.Token); err != nil {
+		return plexLoginOutcome{}, err
+	}
+	return plexLoginOutcome{Username: user.Username, PlexID: user.ID}, nil
+}
+
+func newAuthLoginCmd(flags *rootFlags) *cobra.Command {
+	var launch bool
+	var timeout time.Duration
+	cmd := &cobra.Command{
+		Use:         "login",
+		Short:       "Authorize with Plex and save a verified access token",
+		Example:     "  plexctl-pp-cli auth login\n  plexctl-pp-cli auth login --launch",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"mcp:hidden": "true"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if flags.noInput {
+				return usageErr(fmt.Errorf("auth login requires browser approval; re-run without --no-input"))
+			}
+			client := plexauth.New("https://plex.tv", "plexctl-pp-cli", nil)
+			client.Timeout = timeout
+			client.OnPIN = func(authorizeURL string) {
+				fmt.Fprintln(cmd.OutOrStdout(), "Open this Plex authorization URL and approve the sign-in:")
+				fmt.Fprintln(cmd.OutOrStdout(), authorizeURL)
+				if launch {
+					if err := openSetupURL(authorizeURL); err != nil {
+						fmt.Fprintf(cmd.ErrOrStderr(), "could not open browser automatically: %v\n", err)
+					}
+				}
+			}
+			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
+			defer cancel()
+			outcome, err := completePlexLogin(ctx, flags.configPath, client)
+			if err != nil {
+				return authErr(err)
+			}
+			if flags.asJSON {
+				return printJSONFiltered(cmd.OutOrStdout(), map[string]any{"authorized": true, "stored": true, "account": outcome.Username, "plex_id": outcome.PlexID, "credentials_path": credentialSavePath(nil)}, flags)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Plex authorization verified and stored for %s.\n", outcome.Username)
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&launch, "launch", false, "Open the Plex authorization URL in your default browser")
+	cmd.Flags().DurationVar(&timeout, "timeout", 10*time.Minute, "Maximum time to wait for browser authorization")
 	return cmd
 }
 

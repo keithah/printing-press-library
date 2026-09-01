@@ -2434,6 +2434,13 @@ $ curl https://clients.plex.tv/api/v2/resources?includeHttps=1&includeRelay=1&in
 
 The response will be a JSON document which will contain available PMS instances, the `accessToken` used in communication with this PMS, and the list of connection URLs where the PMS may be contacted.  Connections labeled as `local` should be preferred over those that are not, and `relay` should only be used as a last resort as bandwidth on relay connections is limited.
 
+## Unique Capabilities
+
+These capabilities aren't available in any other tool for this API.
+- **`serve`** — Serve the preserved /plex/<account>/<server> health contract for Uptime Kuma.
+- **`serve`** — Refresh Plex.tv resources per health request and match servers by stable clientIdentifier.
+- **`serve`** — Verify library metadata and read a bounded byte range from a playable media part.
+
 ## Command Reference
 
 **activities** — Activities provide a way to monitor and control asynchronous operations on the server. In order to receive real-time updates for activities, a client would normally subscribe via either EventSource or Websocket endpoints.

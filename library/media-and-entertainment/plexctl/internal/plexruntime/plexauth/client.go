@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mvanhorn/printing-press-library/library/media-and-entertainment/plexctl/internal/cliutil"
 )
 
 type Client struct {
@@ -26,6 +29,7 @@ type Client struct {
 	// otherwise be discarded, such as a legacy endpoint that failed before the
 	// JSON fallback succeeded.
 	OnWarning func(string)
+	Limiter   *cliutil.AdaptiveLimiter
 }
 
 type LoginResult struct {
@@ -39,6 +43,15 @@ type pinResponse struct {
 	Code  string `json:"code"`
 	Token string `json:"authToken"`
 }
+
+type authHTTPError struct {
+	StatusCode int
+}
+
+func (e *authHTTPError) Error() string {
+	return fmt.Sprintf("plex authentication request failed: HTTP %d", e.StatusCode)
+}
+
 type User struct {
 	ID       int    `json:"id"`
 	Username string `json:"username"`
@@ -82,7 +95,7 @@ func New(baseURL, clientID string, hc *http.Client) *Client {
 	if hc == nil {
 		hc = &http.Client{Timeout: 15 * time.Second}
 	}
-	return &Client{BaseURL: strings.TrimRight(baseURL, "/"), ClientID: clientID, Product: "plexctl", HTTP: hc, PollInterval: 2 * time.Second, Timeout: 10 * time.Minute}
+	return &Client{BaseURL: strings.TrimRight(baseURL, "/"), ClientID: clientID, Product: "plexctl", HTTP: hc, PollInterval: 2 * time.Second, Timeout: 10 * time.Minute, Limiter: cliutil.NewAdaptiveLimiterAuto(2)}
 }
 
 func (c *Client) Login(ctx context.Context) (LoginResult, error) {
@@ -119,6 +132,10 @@ func (c *Client) Login(ctx context.Context) (LoginResult, error) {
 		case <-t.C:
 		}
 		if err := c.request(ctx, http.MethodGet, "/api/v2/pins/"+strconv.Itoa(pin.ID), nil, &pin); err != nil {
+			var httpErr *authHTTPError
+			if errors.As(err, &httpErr) && httpErr.StatusCode == http.StatusNotFound {
+				return LoginResult{}, fmt.Errorf("Plex authorization PIN expired or was cancelled; start auth login again")
+			}
 			return LoginResult{}, err
 		}
 	}
@@ -176,6 +193,9 @@ func (c *Client) legacyResources(ctx context.Context, token string) ([]Resource,
 	req.Header.Set("X-Plex-Client-Identifier", c.ClientID)
 	req.Header.Set("X-Plex-Product", c.Product)
 	req.Header.Set("X-Plex-Token", token)
+	if err := c.Limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return nil, err
@@ -184,6 +204,9 @@ func (c *Client) legacyResources(ctx context.Context, token string) ([]Resource,
 	data, err := readLimited(resp.Body, 4<<20, "legacy Plex resources")
 	if err != nil {
 		return nil, err
+	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, &cliutil.RateLimitError{URL: req.URL.String(), RetryAfter: cliutil.RetryAfter(resp), Body: strings.TrimSpace(string(data))}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("legacy Plex resources request failed: HTTP %d", resp.StatusCode)
@@ -229,6 +252,9 @@ func (c *Client) getJSON(ctx context.Context, path, token string, out any) error
 	req.Header.Set("X-Plex-Client-Identifier", c.ClientID)
 	req.Header.Set("X-Plex-Product", c.Product)
 	req.Header.Set("X-Plex-Token", token)
+	if err := c.Limiter.Wait(ctx); err != nil {
+		return err
+	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return err
@@ -237,6 +263,9 @@ func (c *Client) getJSON(ctx context.Context, path, token string, out any) error
 	data, err := readLimited(resp.Body, 2<<20, "Plex")
 	if err != nil {
 		return err
+	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return &cliutil.RateLimitError{URL: req.URL.String(), RetryAfter: cliutil.RetryAfter(resp), Body: strings.TrimSpace(string(data))}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("plex request failed: HTTP %d", resp.StatusCode)
@@ -258,6 +287,9 @@ func (c *Client) request(ctx context.Context, method, path string, query url.Val
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("X-Plex-Client-Identifier", c.ClientID)
 	req.Header.Set("X-Plex-Product", c.Product)
+	if err := c.Limiter.Wait(ctx); err != nil {
+		return err
+	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return err
@@ -267,8 +299,11 @@ func (c *Client) request(ctx context.Context, method, path string, query url.Val
 	if err != nil {
 		return err
 	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return &cliutil.RateLimitError{URL: req.URL.String(), RetryAfter: cliutil.RetryAfter(resp), Body: strings.TrimSpace(string(data))}
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("plex authentication request failed: HTTP %d", resp.StatusCode)
+		return &authHTTPError{StatusCode: resp.StatusCode}
 	}
 	if err := json.Unmarshal(data, out); err != nil {
 		return fmt.Errorf("decode Plex authentication response: %w", err)
