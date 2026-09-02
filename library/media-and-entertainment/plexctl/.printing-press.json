@@ -11,6 +11,7 @@
   },
   "owner": "keithah",
   "printer": "keithah",
+  "printer_name": "Keith Herrington",
   "spec_path": "spec.json",
   "spec_format": "openapi3",
   "spec_source": "official",
