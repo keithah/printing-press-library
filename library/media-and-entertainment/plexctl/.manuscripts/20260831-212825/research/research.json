@@ -1,0 +1,346 @@
+{
+  "api_name": "plexctl",
+  "novelty_score": 7,
+  "alternatives": [
+    {
+      "name": "ygelfand/plexctl",
+      "url": "https://github.com/ygelfand/plexctl",
+      "language": "go",
+      "install_method": "binary",
+      "stars": 9,
+      "last_updated": "2026-08-11",
+      "command_count": 0,
+      "has_json_output": false,
+      "has_auth_support": false
+    },
+    {
+      "name": "Phelsong/plexctl",
+      "url": "https://github.com/Phelsong/plexctl",
+      "language": "python",
+      "install_method": "pip",
+      "stars": 0,
+      "last_updated": "2026-08-09",
+      "command_count": 0,
+      "has_json_output": false,
+      "has_auth_support": false
+    },
+    {
+      "name": "keithah/plexctl",
+      "url": "https://github.com/keithah/plexctl",
+      "language": "go",
+      "install_method": "binary",
+      "stars": 0,
+      "last_updated": "2026-09-01",
+      "command_count": 0,
+      "has_json_output": false,
+      "has_auth_support": false
+    }
+  ],
+  "gaps": [
+    "most alternatives lack --json output mode",
+    "no alternative offers --dry-run mode"
+  ],
+  "patterns": [
+    "standard CLI patterns (list, get, create, update, delete)"
+  ],
+  "recommendation": "proceed",
+  "researched_at": "2026-09-01T12:28:06.774702-07:00",
+  "competitor_insights": {
+    "analyses": [
+      {
+        "repo_url": "https://github.com/ygelfand/plexctl",
+        "commands_found": [
+          "plexctl_darwin_arm64",
+          "mv",
+          "install",
+          "run",
+          "-h",
+          "library",
+          "search",
+          "session",
+          "tasks",
+          "CLI"
+        ],
+        "feature_requests": [
+          "chore(deps-dev): bump js-yaml from 4.3.0 to 4.3.1 in /docs",
+          "[Feature Request] Support for image rendering in terminal (Kitty, ITerm2, Sixel)"
+        ],
+        "abandoned_prs": null,
+        "pain_points": [
+          "Project is a Work in Progress with expected breaking changes and incomplete features",
+          "Requires external dependency (mpv) to be manually installed and configured in PATH for media playback",
+          "No dedicated configuration section documented despite a Configuration heading existing"
+        ],
+        "command_count": 10
+      },
+      {
+        "repo_url": "https://github.com/Phelsong/plexctl",
+        "commands_found": [
+          "item search",
+          "item edit",
+          "item ingest",
+          "item info",
+          "item rate",
+          "item watch",
+          "item unwatch",
+          "item delete",
+          "item matches",
+          "item fix-match",
+          "item unmatch",
+          "item get",
+          "item advanced",
+          "item actor",
+          "item director",
+          "item genre",
+          "item title",
+          "item year",
+          "item similar",
+          "item tmdb",
+          "item add-genre",
+          "item remove-genre",
+          "item add-collection",
+          "item remove-collection",
+          "item add-label",
+          "item remove-label",
+          "item add-director",
+          "item remove-director",
+          "item add-writer",
+          "item remove-writer",
+          "item add-mood",
+          "item remove-mood",
+          "item add-style",
+          "item remove-style",
+          "item add-country",
+          "item remove-country",
+          "item lock",
+          "item unlock",
+          "item search-subs",
+          "item download-sub",
+          "item upload-sub",
+          "item remove-sub",
+          "item set-progress",
+          "item merge",
+          "library list",
+          "library get",
+          "library create",
+          "library delete",
+          "library update",
+          "library locations",
+          "library collections list",
+          "library collections get",
+          "library collections create",
+          "library collections update",
+          "library collections delete",
+          "library collections add",
+          "library collections remove",
+          "library playlists list",
+          "library playlists get",
+          "library playlists create",
+          "library playlists update",
+          "library playlists delete",
+          "library playlists items",
+          "library playlists add",
+          "library playlists remove",
+          "library playlists import",
+          "library playlists generate-m3u",
+          "library playlists smart create",
+          "library playlists smart get",
+          "library playlists smart list",
+          "library playlists smart update",
+          "library playlists smart delete",
+          "library playlists smart items",
+          "movies",
+          "music",
+          "music albums",
+          "music tracks",
+          "music tree",
+          "music recently-added",
+          "photos",
+          "photos list",
+          "photos tree",
+          "photos recently-added",
+          "shows",
+          "shows tree",
+          "shows show",
+          "shows season",
+          "playlists list",
+          "playlists get",
+          "playlists create",
+          "playlists update",
+          "playlists delete",
+          "playlists items",
+          "playlists add",
+          "playlists remove",
+          "playlists import",
+          "playlists generate-m3u",
+          "playlists smart create",
+          "playlists smart get",
+          "playlists smart list",
+          "playlists smart update",
+          "playlists smart delete",
+          "playlists smart items",
+          "server sessions",
+          "server info",
+          "server prefs",
+          "server set-pref",
+          "server butler",
+          "server butler-run",
+          "triage report",
+          "triage fix",
+          "triage diagnose",
+          "triage diagnose-show",
+          "triage diagnose-files",
+          "triage analyze",
+          "triage batch-analyze",
+          "triage batch-refresh",
+          "triage seasons",
+          "triage matches",
+          "triage fix-match",
+          "triage split",
+          "triage remove-duplicates",
+          "triage merge",
+          "triage empty-trash",
+          "triage ingest",
+          "triage ingest list",
+          "triage fsck-scan",
+          "triage fsck-orphans",
+          "triage fsck-grouped",
+          "triage fsck-reorganize",
+          "shoko series",
+          "shoko episodes",
+          "shoko files",
+          "shoko unlinked",
+          "shoko problems",
+          "shoko crc-audit",
+          "shoko batch-rehash",
+          "shoko plexmatch",
+          "shoko plexmatch-all",
+          "shoko plexmatch-orderings"
+        ],
+        "feature_requests": [
+          "Onboarding command to walk users through obtaining a Plex token"
+        ],
+        "abandoned_prs": null,
+        "pain_points": [
+          "Docker deployments of Plex use different filesystem paths than the host, requiring manual --path-map translation for filesystem comparison and triage commands",
+          "Config file must be manually chmod'd to 400 since plexctl only warns (rather than enforces) about group/other-readable permissions",
+          "Fansub-style anime filenames break Plex's built-in filename-based episode matching, requiring a separate .plexmatch generation workflow",
+          "Long-running anime series have multiple conflicting TMDB season/episode orderings (e.g. One Piece has 4+), requiring manual --ordering selection to get correct numbering",
+          "GitHub repo is a push-only mirror, implying issues/PRs may not be accepted or monitored there"
+        ],
+        "command_count": 140
+      },
+      {
+        "repo_url": "https://github.com/keithah/plexctl",
+        "commands_found": [
+          "server info",
+          "auth login",
+          "auth logout",
+          "accounts list",
+          "accounts use",
+          "servers list",
+          "servers use",
+          "server identity",
+          "library list",
+          "library search",
+          "library recently-added",
+          "library items",
+          "metadata get",
+          "metadata children",
+          "playlists list",
+          "playlists get",
+          "playlists items",
+          "collections list",
+          "collections items",
+          "download-queues get",
+          "download-queues items",
+          "download-queues item",
+          "download-queues decision",
+          "transcode decision",
+          "transcode subtitles",
+          "sessions list",
+          "sessions history",
+          "health ping",
+          "health check",
+          "serve",
+          "api"
+        ],
+        "feature_requests": [
+          "Typed mutation commands with explicit confirmation gates (raw API mutations currently intentionally rejected)",
+          "Full coverage of metadata children endpoint across all servers/item types (currently 404s on some due to being outside pinned OpenAPI contract)"
+        ],
+        "abandoned_prs": null,
+        "pain_points": [
+          "Raw API mutation calls are blocked entirely since no typed command with confirmation exists yet, limiting write workflows to read-only",
+          "metadata children targets a route not present in the pinned OpenAPI contract, causing inconsistent 404s depending on server/item type",
+          "IP-literal server endpoints require disabling certificate verification since Plex's cert cannot match the IP, a workaround rather than a real fix",
+          "Legacy environment-token auth config still needs to be supported alongside the newer OS credential store, adding auth complexity"
+        ],
+        "command_count": 31
+      }
+    ],
+    "command_target": 168,
+    "unmet_features": [
+      "chore(deps-dev): bump js-yaml from 4.3.0 to 4.3.1 in /docs",
+      "[Feature Request] Support for image rendering in terminal (Kitty, ITerm2, Sixel)",
+      "Onboarding command to walk users through obtaining a Plex token",
+      "Typed mutation commands with explicit confirmation gates (raw API mutations currently intentionally rejected)",
+      "Full coverage of metadata children endpoint across all servers/item types (currently 404s on some due to being outside pinned OpenAPI contract)"
+    ],
+    "pain_points_to_avoid": [
+      "Project is a Work in Progress with expected breaking changes and incomplete features",
+      "Requires external dependency (mpv) to be manually installed and configured in PATH for media playback",
+      "No dedicated configuration section documented despite a Configuration heading existing",
+      "Docker deployments of Plex use different filesystem paths than the host, requiring manual --path-map translation for filesystem comparison and triage commands",
+      "Config file must be manually chmod'd to 400 since plexctl only warns (rather than enforces) about group/other-readable permissions",
+      "Fansub-style anime filenames break Plex's built-in filename-based episode matching, requiring a separate .plexmatch generation workflow",
+      "Long-running anime series have multiple conflicting TMDB season/episode orderings (e.g. One Piece has 4+), requiring manual --ordering selection to get correct numbering",
+      "GitHub repo is a push-only mirror, implying issues/PRs may not be accepted or monitored there",
+      "Raw API mutation calls are blocked entirely since no typed command with confirmation exists yet, limiting write workflows to read-only",
+      "metadata children targets a route not present in the pinned OpenAPI contract, causing inconsistent 404s depending on server/item type",
+      "IP-literal server endpoints require disabling certificate verification since Plex's cert cannot match the IP, a workaround rather than a real fix",
+      "Legacy environment-token auth config still needs to be supported alongside the newer OS credential store, adding auth complexity"
+    ]
+  },
+  "auth": {
+    "canonical_env_var": "PLEXCTL_USER_TOKEN"
+  },
+  "narrative": {
+    "display_name": "Plex Media Server",
+    "headline": "Read Plex Media Server resources through a typed CLI with protected credential storage.",
+    "value_prop": "Use the CLI to inspect a configured Plex server and automate read-only operational checks. Authentication is stored only after a verified Plex authorization flow.",
+    "auth_narrative": "Start the device authorization flow with `plexctl-pp-cli auth login`; the CLI verifies the resulting credential before saving it and never prints the token.",
+    "quickstart": [
+      {
+        "comment": "Check whether a verified credential is already available.",
+        "command": "plexctl-pp-cli auth status"
+      },
+      {
+        "comment": "Authorize in a browser when status reports no credential.",
+        "command": "plexctl-pp-cli auth login"
+      }
+    ],
+    "troubleshoots": [
+      {
+        "symptom": "Authentication is unavailable.",
+        "fix": "Run `plexctl-pp-cli auth status` and then complete `plexctl-pp-cli auth login` if needed."
+      }
+    ],
+    "when_to_use": "Use this CLI for read-only Plex Media Server inspection, automation, and health workflows. Do not use it to perform unsupported raw mutations.",
+    "anti_triggers": [
+      "Do not use this CLI to expose credentials or access tokens."
+    ],
+    "recipes": [
+      {
+        "title": "Inspect credential status",
+        "command": "plexctl-pp-cli auth status --json",
+        "explanation": "Returns the credential state without printing the credential."
+      }
+    ],
+    "trigger_phrases": [
+      "inspect Plex server status",
+      "check Plex authentication",
+      "query Plex library"
+    ]
+  }
+}
