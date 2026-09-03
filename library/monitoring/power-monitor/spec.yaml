@@ -1,0 +1,29 @@
+openapi: 3.0.3
+info:
+  title: Power Monitor
+  version: 1.0.0
+  description: PG&E/Opower, Enphase, Emporia electricity monitoring
+servers:
+  - url: https://192.168.42.11:8094
+    description: production solar-power-monitor
+paths:
+  /api/status:
+    get:
+      operationId: status
+      responses:
+        "200":
+          description: status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string}
+                  systems: {type: integer}
+                  readings: {type: integer}
+  /api/collect:
+    post:
+      operationId: collect
+      responses:
+        "200":
+          description: collect result
